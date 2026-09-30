@@ -1,0 +1,64 @@
+package org.apache.tika.io;
+
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.EndianUtils;
+import org.apache.tika.io.InputStreams;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import org.mockito.*;
+import org.junit.jupiter.api.*;
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+@ExtendWith(MockitoExtension.class)
+public class EndianUtils_readLongLE_9_0_Test {
+
+    @Mock
+    private InputStream mockInputStream;
+
+    @BeforeEach
+    public void setUp() {
+        when(mockInputStream.read()).thenReturn(0);
+    }
+
+    @Test
+    public void testReadLongLE() throws IOException {
+        when(mockInputStream.read()).thenReturn(0, 1, 2, 3, 4, 5, 6, 7);
+        long result = EndianUtils.readLongLE(mockInputStream);
+        assertEquals(0x0706050403020100L, result);
+    }
+
+    @Test
+    public void testReadLongLE_WithBufferUnderrun() throws IOException {
+        when(mockInputStream.read()).thenReturn(0, 1, 2, 3, 4, 5, 6);
+        assertThrows(BufferUnderrunException.class, () -> EndianUtils.readLongLE(mockInputStream));
+    }
+
+    @Test
+    public void testReadLongLE_WithNegativeByte() throws IOException {
+        when(mockInputStream.read()).thenReturn(0, 1, 2, 3, 4, 5, 6, -1);
+        assertThrows(BufferUnderrunException.class, () -> EndianUtils.readLongLE(mockInputStream));
+    }
+
+    @Test
+    public void testReadLongLE_WithIOException() throws IOException {
+        when(mockInputStream.read()).thenThrow(new IOException());
+        assertThrows(IOException.class, () -> EndianUtils.readLongLE(mockInputStream));
+    }
+}
+
+--------------------------------------------
+Error in EndianUtils_readLongLE_9_0_Test: line -1 : Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+Error in EndianUtils_readLongLE_9_0_Test: line -1 : Supported source version 'RELEASE_17' from annotation processor 'org.apache.tika.annotation.TikaComponentProcessor' less than -source '21'
+Error in EndianUtils_readLongLE_9_0_Test: line 5 : cannot find symbol
+  symbol:   class InputStreams
+  location: package org.apache.tika.io

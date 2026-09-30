@@ -1,0 +1,59 @@
+package org.apache.tika.io;
+
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.BufferUnderrunException;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import org.mockito.*;
+import org.junit.jupiter.api.*;
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+@ExtendWith(MockitoExtension.class)
+public class EndianUtils_readUIntBE_5_0_Test {
+
+    @InjectMocks
+    private EndianUtils endianUtils;
+
+    @Mock
+    private InputStream inputStream;
+
+    @Test
+    public void testReadUIntBE_Success() throws IOException {
+        when(inputStream.read()).thenReturn(0x12, 0x34, 0x56, 0x78);
+        long result = endianUtils.readUIntBE(inputStream);
+        assertEquals(0x12345678L, result);
+        verify(inputStream, times(4)).read();
+    }
+
+    @Test
+    public void testReadUIntBE_IOException() throws IOException {
+        when(inputStream.read()).thenReturn(0x12, 0x34, 0x56, -1);
+        assertThrows(BufferUnderrunException.class, () -> endianUtils.readUIntBE(inputStream));
+        verify(inputStream, times(4)).read();
+    }
+
+    @Test
+    public void testReadUIntBE_NegativeValues() throws IOException {
+        when(inputStream.read()).thenReturn(0xFF, 0xFF, 0xFF, 0xFF);
+        long result = endianUtils.readUIntBE(inputStream);
+        assertEquals(0xFFFFFFFFL, result);
+        verify(inputStream, times(4)).read();
+    }
+}
+
+--------------------------------------------
+Error in EndianUtils_readUIntBE_5_0_Test: line -1 : Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+Error in EndianUtils_readUIntBE_5_0_Test: line -1 : Supported source version 'RELEASE_17' from annotation processor 'org.apache.tika.annotation.TikaComponentProcessor' less than -source '21'
+Error in EndianUtils_readUIntBE_5_0_Test: line 4 : cannot find symbol
+  symbol:   class BufferUnderrunException
+  location: package org.apache.tika.io

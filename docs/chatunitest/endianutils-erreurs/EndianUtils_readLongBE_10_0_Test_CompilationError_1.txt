@@ -1,0 +1,56 @@
+package org.apache.tika.io;
+
+import org.apache.tika.io.EndianUtils;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.exception.BufferUnderrunException;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import org.junit.jupiter.api.function.Executable;
+import java.lang.reflect.Method;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.io.InputStream;
+import org.mockito.*;
+import org.junit.jupiter.api.*;
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class EndianUtils_readLongBE_10_0_Test {
+
+    @Test
+    public void testReadLongBE() throws Exception {
+        EndianUtils endianUtils = new EndianUtils();
+        byte[] data = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04, (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08 };
+        InputStream inputStream = new ByteArrayInputStream(data);
+        long result = (long) invokePrivateMethod(endianUtils, "readLongBE", inputStream);
+        assertEquals(0x0102030405060708L, result);
+    }
+
+    @Test
+    public void testReadLongBEWithBufferUnderrun() throws Exception {
+        EndianUtils endianUtils = new EndianUtils();
+        byte[] data = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04 };
+        InputStream inputStream = new ByteArrayInputStream(data);
+        Executable executable = () -> invokePrivateMethod(endianUtils, "readLongBE", inputStream);
+        assertThrows(BufferUnderrunException.class, executable);
+    }
+
+    private Object invokePrivateMethod(Object object, String methodName, Object... args) throws Exception {
+        Method method = object.getClass().getDeclaredMethod(methodName, InputStream.class);
+        method.setAccessible(true);
+        return method.invoke(object, args);
+    }
+}
+
+--------------------------------------------
+Error in EndianUtils_readLongBE_10_0_Test: line -1 : Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+Error in EndianUtils_readLongBE_10_0_Test: line -1 : Supported source version 'RELEASE_17' from annotation processor 'org.apache.tika.annotation.TikaComponentProcessor' less than -source '21'
+Error in EndianUtils_readLongBE_10_0_Test: line 5 : cannot find symbol
+  symbol:   class BufferUnderrunException
+  location: package org.apache.tika.exception

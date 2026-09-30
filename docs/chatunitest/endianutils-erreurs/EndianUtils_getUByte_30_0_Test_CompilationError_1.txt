@@ -1,0 +1,40 @@
+package org.apache.tika.io;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.*;
+import org.junit.jupiter.api.*;
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+import java.io.IOException;
+import java.io.InputStream;
+import org.apache.tika.exception.TikaException;
+
+@ExtendWith(MockitoExtension.class)
+public class EndianUtils_getUByte_30_0_Test {
+
+    @Test
+    public void testGetUByte() {
+        // Arrange
+        byte[] data = { 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0 };
+        int offset = 0;
+        // Act
+        short result = EndianUtils.getUByte(data, offset);
+        // Assert
+        assertEquals(0x12, result);
+    }
+}
+
+--------------------------------------------
+Error in EndianUtils_getUByte_30_0_Test: line -1 : Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+Error in EndianUtils_getUByte_30_0_Test: line -1 : Supported source version 'RELEASE_17' from annotation processor 'org.apache.tika.annotation.TikaComponentProcessor' less than -source '21'
+Error in EndianUtils_getUByte_30_0_Test: line 19 : incompatible types: possible lossy conversion from int to byte
+Error in EndianUtils_getUByte_30_0_Test: line 19 : incompatible types: possible lossy conversion from int to byte
+Error in EndianUtils_getUByte_30_0_Test: line 19 : incompatible types: possible lossy conversion from int to byte
+Error in EndianUtils_getUByte_30_0_Test: line 19 : incompatible types: possible lossy conversion from int to byte

@@ -1,0 +1,51 @@
+package org.apache.tika.io;
+
+import org.apache.tika.io.EndianUtils;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.exception.BufferUnderrunException;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.io.IOException;
+import java.io.InputStream;
+import org.mockito.*;
+import org.junit.jupiter.api.*;
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+@ExtendWith(MockitoExtension.class)
+public class EndianUtils_readIntLE_6_0_Test {
+
+    @Mock
+    private InputStream inputStream;
+
+    @Test
+    public void testReadIntLE() throws IOException, TikaException {
+        // Arrange
+        when(inputStream.read()).thenReturn(0x12, 0x34, 0x56, 0x78);
+        // Act
+        int result = EndianUtils.readIntLE(inputStream);
+        // Assert
+        assertEquals(0x78563412, result);
+    }
+
+    @Test
+    public void testReadIntLE_WithBufferUnderrun() throws IOException {
+        // Arrange
+        when(inputStream.read()).thenReturn(0x12, 0x34, 0x56, -1);
+        // Act & Assert
+        assertThrows(BufferUnderrunException.class, () -> EndianUtils.readIntLE(inputStream));
+    }
+}
+
+--------------------------------------------
+Error in EndianUtils_readIntLE_6_0_Test: line -1 : Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+Error in EndianUtils_readIntLE_6_0_Test: line -1 : Supported source version 'RELEASE_17' from annotation processor 'org.apache.tika.annotation.TikaComponentProcessor' less than -source '21'
+Error in EndianUtils_readIntLE_6_0_Test: line 5 : cannot find symbol
+  symbol:   class BufferUnderrunException
+  location: package org.apache.tika.exception

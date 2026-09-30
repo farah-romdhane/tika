@@ -1,0 +1,57 @@
+package org.apache.tika.io;
+
+import org.apache.tika.io.EndianUtils;
+import org.apache.tika.exception.BufferUnderrunException;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import org.mockito.*;
+import org.junit.jupiter.api.*;
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.io.InputStream;
+import org.apache.tika.exception.TikaException;
+
+class EndianUtils_readShortBE_1_1_Test {
+
+    @Test
+    void testReadShortBE() throws IOException, BufferUnderrunException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        // Create a ByteArrayInputStream with a short value in big-endian format
+        byte[] bytes = new byte[2];
+        bytes[0] = (byte) 0x12;
+        bytes[1] = (byte) 0x34;
+        ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
+        // Create an instance of EndianUtils using reflection
+        EndianUtils endianUtils = new EndianUtils();
+        // Get the private method readUShortBE using reflection
+        Method readUShortBE = EndianUtils.class.getDeclaredMethod("readUShortBE", InputStream.class);
+        readUShortBE.setAccessible(true);
+        // Invoke the private method readUShortBE using reflection
+        int result = (int) readUShortBE.invoke(endianUtils, stream);
+        // Check that the result is equal to the expected value
+        assertEquals(0x1234, result);
+        // Check that the stream is not closed after invoking the method
+        assertFalse(stream.available() == 0);
+    }
+}
+
+--------------------------------------------
+Error in EndianUtils_readShortBE_1_1_Test: line -1 : Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+Error in EndianUtils_readShortBE_1_1_Test: line -1 : Supported source version 'RELEASE_17' from annotation processor 'org.apache.tika.annotation.TikaComponentProcessor' less than -source '21'
+Error in EndianUtils_readShortBE_1_1_Test: line 4 : cannot find symbol
+  symbol:   class BufferUnderrunException
+  location: package org.apache.tika.exception
+Error in EndianUtils_readShortBE_1_1_Test: line 20 : cannot find symbol
+  symbol:   class BufferUnderrunException
+  location: class org.apache.tika.io.EndianUtils_readShortBE_1_1_Test
+Error in EndianUtils_readShortBE_1_1_Test: line 20 : cannot find symbol
+  symbol:   class InvocationTargetException
+  location: class org.apache.tika.io.EndianUtils_readShortBE_1_1_Test

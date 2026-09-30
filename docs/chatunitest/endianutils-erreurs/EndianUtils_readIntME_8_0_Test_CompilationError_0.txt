@@ -1,0 +1,53 @@
+package org.apache.tika.io;
+
+import org.apache.tika.io.EndianUtils;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.exception.BufferUnderrunException;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.io.InputStream;
+import java.io.IOException;
+import org.mockito.*;
+import org.junit.jupiter.api.*;
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+@ExtendWith(MockitoExtension.class)
+public class EndianUtils_readIntME_8_0_Test {
+
+    @Mock
+    private InputStream inputStream;
+
+    @Test
+    public void testReadIntME_Success() throws IOException, TikaException {
+        when(inputStream.read()).thenReturn(0x12, 0x34, 0x56, 0x78);
+        int result = EndianUtils.readIntME(inputStream);
+        assertEquals(0x34127856, result);
+    }
+
+    @Test
+    public void testReadIntME_BufferUnderrunException() throws IOException, TikaException {
+        when(inputStream.read()).thenReturn(0x12, 0x34, 0x56, -1);
+        assertThrows(BufferUnderrunException.class, () -> EndianUtils.readIntME(inputStream));
+    }
+
+    @Test
+    public void testReadIntME_NegativeValues() throws IOException, TikaException {
+        when(inputStream.read()).thenReturn(0xFF, 0xFF, 0xFF, 0xFF);
+        int result = EndianUtils.readIntME(inputStream);
+        assertEquals(0xFFFFFFFF, result);
+    }
+}
+
+--------------------------------------------
+Error in EndianUtils_readIntME_8_0_Test: line -1 : Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+Error in EndianUtils_readIntME_8_0_Test: line -1 : Supported source version 'RELEASE_17' from annotation processor 'org.apache.tika.annotation.TikaComponentProcessor' less than -source '21'
+Error in EndianUtils_readIntME_8_0_Test: line 5 : cannot find symbol
+  symbol:   class BufferUnderrunException
+  location: package org.apache.tika.exception

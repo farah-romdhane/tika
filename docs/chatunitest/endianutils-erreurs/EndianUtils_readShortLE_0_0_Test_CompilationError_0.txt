@@ -1,0 +1,62 @@
+package org.apache.tika.io;
+
+import org.apache.tika.io.EndianUtils;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.BufferUnderrunException;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import org.junit.jupiter.api.function.Executable;
+import java.lang.reflect.Method;
+import org.mockito.*;
+import org.junit.jupiter.api.*;
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.io.InputStream;
+
+public class EndianUtils_readShortLE_0_0_Test {
+
+    @Test
+    public void testReadShortLE() throws Exception {
+        EndianUtils endianUtils = new EndianUtils();
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[] { 0x12, 0x34 });
+        short result = (short) getPrivateMethodValue(endianUtils, "readShortLE", inputStream);
+        assertEquals(0x3412, result);
+    }
+
+    @Test
+    public void testReadShortLEWithBufferUnderrunException() throws Exception {
+        EndianUtils endianUtils = new EndianUtils();
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[] { 0x12 });
+        Executable executable = () -> getPrivateMethodValue(endianUtils, "readShortLE", inputStream);
+        assertThrows(BufferUnderrunException.class, executable);
+    }
+
+    @Test
+    public void testReadShortLEWithIOException() throws Exception {
+        EndianUtils endianUtils = new EndianUtils();
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[] {});
+        Executable executable = () -> getPrivateMethodValue(endianUtils, "readShortLE", inputStream);
+        assertThrows(IOException.class, executable);
+    }
+
+    private Object getPrivateMethodValue(Object obj, String methodName, Object... args) throws Exception {
+        Method method = obj.getClass().getDeclaredMethod(methodName, args[0].getClass());
+        method.setAccessible(true);
+        return method.invoke(obj, args);
+    }
+}
+
+--------------------------------------------
+Error in EndianUtils_readShortLE_0_0_Test: line -1 : Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+Error in EndianUtils_readShortLE_0_0_Test: line -1 : Supported source version 'RELEASE_17' from annotation processor 'org.apache.tika.annotation.TikaComponentProcessor' less than -source '21'
+Error in EndianUtils_readShortLE_0_0_Test: line 5 : cannot find symbol
+  symbol:   class BufferUnderrunException
+  location: package org.apache.tika.io
