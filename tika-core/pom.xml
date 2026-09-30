@@ -136,10 +136,11 @@
         <version>2.1.1</version>
         <configuration>
           <apiKeys>ollama</apiKeys>
-          <model>codeqwen:v1.5-chat</model>
+          <model>code-llama</model>
           <url>http://localhost:11434/v1/chat/completions</url>
-          <testNumber>2</testNumber>
+          <testNumber>1</testNumber>
           <maxRounds>3</maxRounds>
+          <maxPromptTokens>3000</maxPromptTokens>
           <thread>false</thread>
           <temperature>0.2</temperature>
         </configuration>
