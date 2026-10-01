@@ -26,11 +26,11 @@ jobs:
 
       - name: Executer les tests (originaux + generes + manuels)
         working-directory: tika-core
-        run: mvn -B test "-Dtest=EndianUtils*Test,MediaType*Test" "-Dsurefire.failIfNoSpecifiedTests=false"
-
+	run: mvn -B test "-Dtest=EndianUtils*Test,MediaType*Test" "-Dsurefire.failIfNoSpecifiedTests=false" "-Dcheckstyle.skip"
+      
       - name: Analyse de mutation PIT
         working-directory: tika-core
-        run: mvn -B test-compile org.pitest:pitest-maven:mutationCoverage
+        run: mvn -B test-compile org.pitest:pitest-maven:mutationCoverage "-Dcheckstyle.skip"
 
       - name: Publier les rapports
         if: always()

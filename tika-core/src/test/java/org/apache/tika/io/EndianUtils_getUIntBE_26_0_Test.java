@@ -30,7 +30,8 @@ public class EndianUtils_getUIntBE_26_0_Test {
         EndianUtils endianUtils = new EndianUtils();
         byte[] data = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
         long result = endianUtils.getUIntBE(data);
-        assertEquals(1L, result);
+        // CORRECTION MANUELLE : l'IA pensait que la methode lit 8 octets ; elle n'en lit que 4 (00 00 00 00) -> 0
+        assertEquals(0L, result);
     }
 
     @Test
@@ -75,7 +76,8 @@ public class EndianUtils_getUIntBE_26_0_Test {
     @Test
     public void testGetUIntBEWithPartialData() throws Exception {
         EndianUtils endianUtils = new EndianUtils();
-        byte[] data = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        // CORRECTION MANUELLE : 7 octets suffisent (la methode n'en lit que 4) ; on utilise 3 octets pour provoquer l'exception
+        byte[] data = { 0x00, 0x00, 0x00 };
         Executable executable = () -> endianUtils.getUIntBE(data);
         assertThrows(IndexOutOfBoundsException.class, executable);
     }
@@ -85,7 +87,8 @@ public class EndianUtils_getUIntBE_26_0_Test {
         EndianUtils endianUtils = new EndianUtils();
         byte[] data = { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF };
         long result = endianUtils.getUIntBE(data);
-        assertEquals(0xFFFFFFFFFFFFFFFFL, result);
+        // CORRECTION MANUELLE : valeur NON signee sur 32 bits : FF FF FF FF -> 4294967295 (et non -1)
+        assertEquals(0xFFFFFFFFL, result);
     }
 
     @Test

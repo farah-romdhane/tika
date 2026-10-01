@@ -37,7 +37,8 @@ public class EndianUtils_getUShortBE_18_0_Test {
     public void testGetUShortBEWithOffset() throws IOException {
         byte[] data = { 0x01, 0x02, 0x03, 0x04 };
         int result = EndianUtils.getUShortBE(data, 1);
-        assertEquals(258, result);
+        // CORRECTION MANUELLE : a l'offset 1 on lit 02 03 -> 0x0203 = 515 (l'IA attendait 258 = 0x0102)
+        assertEquals(515, result);
     }
 
     @Test

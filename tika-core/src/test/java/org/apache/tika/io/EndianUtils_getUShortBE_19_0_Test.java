@@ -41,7 +41,8 @@ public class EndianUtils_getUShortBE_19_0_Test {
     public void testGetUShortBEWithOffset() throws IOException, TikaException {
         byte[] data = { (byte) 0x56, (byte) 0x78, (byte) 0x9A, (byte) 0xBC };
         int offset = 2;
-        int expected = 0x9A9B;
+        // CORRECTION MANUELLE : a l'offset 2 on lit 9A BC -> 0x9ABC (l'IA attendait 0x9A9B, valeur inventee)
+        int expected = 0x9ABC;
         int result = EndianUtils.getUShortBE(data, offset);
         assertEquals(expected, result);
     }
@@ -53,7 +54,8 @@ public class EndianUtils_getUShortBE_19_0_Test {
         Exception exception = assertThrows(IndexOutOfBoundsException.class, () -> {
             EndianUtils.getUShortBE(data, offset);
         });
-        assertEquals("Index 1 out of bounds for length 2", exception.getMessage());
+        // CORRECTION MANUELLE : l'index fautif est -1
+        assertEquals("Index -1 out of bounds for length 2", exception.getMessage());
     }
 
     @Test

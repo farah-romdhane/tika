@@ -32,7 +32,8 @@ public class EndianUtils_getShortBE_17_0_Test {
     public void testGetShortBE() throws IOException, TikaException {
         byte[] data = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
         int offset = 0;
-        short expected = 0x0100;
+        // CORRECTION MANUELLE : l'IA attendait 0x0100 (little-endian). En big-endian, 00 01 -> 0x0001
+        short expected = 0x0001;
         short result = EndianUtils.getShortBE(data, offset);
         assertEquals(expected, result);
     }
@@ -41,7 +42,8 @@ public class EndianUtils_getShortBE_17_0_Test {
     public void testGetShortBEWithOffset() throws IOException, TikaException {
         byte[] data = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
         int offset = 2;
-        short expected = 0x0302;
+        // CORRECTION MANUELLE : l'IA attendait 0x0302 (little-endian). En big-endian, 02 03 -> 0x0203
+        short expected = 0x0203;
         short result = EndianUtils.getShortBE(data, offset);
         assertEquals(expected, result);
     }
@@ -53,7 +55,8 @@ public class EndianUtils_getShortBE_17_0_Test {
         Exception exception = assertThrows(IndexOutOfBoundsException.class, () -> {
             EndianUtils.getShortBE(data, offset);
         });
-        assertEquals("Index 7 out of bounds for length 8", exception.getMessage());
+        // CORRECTION MANUELLE : avec offset = -1, Java signale l'index fautif -1 (et non 7)
+        assertEquals("Index -1 out of bounds for length 8", exception.getMessage());
     }
 
     @Test

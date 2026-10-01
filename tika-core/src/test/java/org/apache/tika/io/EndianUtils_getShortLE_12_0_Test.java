@@ -51,7 +51,8 @@ public class EndianUtils_getShortLE_12_0_Test {
     @Test
     public void testGetShortLEWithEmptyData() {
         byte[] data = {};
-        assertThrows(NullPointerException.class, () -> EndianUtils.getShortLE(data));
+        // CORRECTION MANUELLE : un tableau vide n'est pas null ; l'acces a data[0] leve ArrayIndexOutOfBoundsException
+        assertThrows(ArrayIndexOutOfBoundsException.class, () -> EndianUtils.getShortLE(data));
     }
 
     @Test

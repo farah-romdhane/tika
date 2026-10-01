@@ -29,16 +29,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class EndianUtils_getShortBE_16_0_Test {
 
-    @Mock
-    private EndianUtils endianUtils;
-
     @Test
     public void testGetShortBE() throws IOException {
         byte[] data = new byte[] { 0x01, 0x02 };
-        short expected = 0x0201;
-        when(endianUtils.getUShortBE(data, 0)).thenReturn(0x0201);
+        // CORRECTION MANUELLE : l'IA utilisait un mock Mockito sur une methode statique
+        // (when()/verify() impossibles -> MissingMethodInvocationException) et attendait 0x0201 (little-endian).
+        // Correction : appel direct, oracle big-endian 01 02 -> 0x0102
+        short expected = 0x0102;
         short result = EndianUtils.getShortBE(data);
         assertEquals(expected, result);
-        verify(endianUtils, times(1)).getUShortBE(data, 0);
     }
 }

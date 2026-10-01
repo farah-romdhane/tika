@@ -39,7 +39,8 @@ public class EndianUtils_getUShortLE_14_0_Test {
     public void testGetUShortLEWithOffset() throws IOException, TikaException {
         byte[] data = { 0x01, 0x02, 0x03, 0x04 };
         int result = EndianUtils.getUShortLE(data, 1);
-        assertEquals(0x0403, result);
+        // CORRECTION MANUELLE : a l'offset 1 on lit 02 03 ; en little-endian -> 0x0302 (l'IA attendait 0x0403)
+        assertEquals(0x0302, result);
     }
 
     @Test

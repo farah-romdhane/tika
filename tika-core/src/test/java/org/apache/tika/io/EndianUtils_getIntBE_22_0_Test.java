@@ -31,13 +31,15 @@ public class EndianUtils_getIntBE_22_0_Test {
     public void testGetIntBE() {
         byte[] data = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
         int result = EndianUtils.getIntBE(data);
-        assertEquals(0x04030201, result);
+        // CORRECTION MANUELLE : l'IA attendait 0x04030201 (lecture little-endian). En big-endian, 01 02 03 04 -> 0x01020304
+        assertEquals(0x01020304, result);
     }
 
     @Test
     public void testGetIntBEWithOffset() {
         byte[] data = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
         int result = EndianUtils.getIntBE(data, 4);
-        assertEquals(0x08070605, result);
+        // CORRECTION MANUELLE : l'IA attendait 0x08070605 (little-endian). En big-endian, 05 06 07 08 -> 0x05060708
+        assertEquals(0x05060708, result);
     }
 }

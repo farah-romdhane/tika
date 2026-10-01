@@ -32,7 +32,8 @@ public class EndianUtils_getIntLE_20_0_Test {
     public void testGetIntLE() throws IOException, TikaException {
         byte[] data = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
         int result = EndianUtils.getIntLE(data);
-        assertEquals(0x0807060504030201L, result);
+        // CORRECTION MANUELLE : l'IA attendait une valeur sur 8 octets (long), mais getIntLE lit 4 octets. LE de 01 02 03 04 -> 0x04030201
+        assertEquals(0x04030201, result);
     }
 
     @Test
