@@ -1,0 +1,274 @@
+package org.apache.tika.mime;
+
+import org.apache.tika.mime.MediaType;
+import org.junit.jupiter.api.function.Executable;
+import java.io.Serializable;
+import java.nio.charset.Charset;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import org.mockito.*;
+import org.junit.jupiter.api.*;
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class MediaType_equals_18_0_Test {
+
+    @Test
+    public void testEqualsWithSameObject() {
+        MediaType mediaType = new MediaType("text", "plain");
+        assertTrue(mediaType.equals(mediaType));
+    }
+
+    @Test
+    public void testEqualsWithDifferentObject() {
+        MediaType mediaType1 = new MediaType("text", "plain");
+        MediaType mediaType2 = new MediaType("application", "zip");
+        assertFalse(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithDifferentCase() {
+        MediaType mediaType1 = new MediaType("text", "plain");
+        MediaType mediaType2 = new MediaType("TEXT", "PLAIN");
+        assertTrue(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithDifferentParameters() {
+        MediaType mediaType1 = new MediaType("text", "plain", Collections.singletonMap("charset", "UTF-8"));
+        MediaType mediaType2 = new MediaType("text", "plain");
+        assertFalse(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithNull() {
+        MediaType mediaType = new MediaType("text", "plain");
+        assertFalse(mediaType.equals(null));
+    }
+
+    @Test
+    public void testEqualsWithDifferentClass() {
+        MediaType mediaType = new MediaType("text", "plain");
+        assertFalse(mediaType.equals("text/plain"));
+    }
+
+    @Test
+    public void testEqualsWithDifferentString() {
+        MediaType mediaType1 = new MediaType("text", "plain");
+        MediaType mediaType2 = new MediaType("text/plain; charset=UTF-8");
+        assertFalse(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithSameString() {
+        MediaType mediaType1 = new MediaType("text", "plain");
+        MediaType mediaType2 = new MediaType("text/plain");
+        assertTrue(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithSameStringAndParameters() {
+        MediaType mediaType1 = new MediaType("text", "plain", Collections.singletonMap("charset", "UTF-8"));
+        MediaType mediaType2 = new MediaType("text/plain; charset=UTF-8");
+        assertTrue(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithSameStringAndDifferentParameters() {
+        MediaType mediaType1 = new MediaType("text", "plain", Collections.singletonMap("charset", "UTF-8"));
+        MediaType mediaType2 = new MediaType("text/plain; charset=ISO-8859-1");
+        assertFalse(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithSameStringAndEmptyParameters() {
+        MediaType mediaType1 = new MediaType("text", "plain");
+        MediaType mediaType2 = new MediaType("text/plain");
+        assertTrue(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithSameStringAndEmptyParametersAndDifferentCharset() {
+        MediaType mediaType1 = new MediaType("text", "plain");
+        MediaType mediaType2 = new MediaType("text/plain; charset=UTF-8");
+        assertFalse(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithSameStringAndEmptyParametersAndSameCharset() {
+        MediaType mediaType1 = new MediaType("text", "plain");
+        MediaType mediaType2 = new MediaType("text/plain; charset=UTF-8");
+        assertFalse(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithSameStringAndEmptyParametersAndSameCharsetAndDifferentParameters() {
+        MediaType mediaType1 = new MediaType("text", "plain");
+        MediaType mediaType2 = new MediaType("text/plain; charset=UTF-8");
+        assertFalse(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithSameStringAndEmptyParametersAndSameCharsetAndSameParameters() {
+        MediaType mediaType1 = new MediaType("text", "plain");
+        MediaType mediaType2 = new MediaType("text/plain; charset=UTF-8");
+        assertFalse(mediaType1.equals(mediaType2));
+    }
+
+    @Test
+    public void testEqualsWithSameStringAndEmptyParametersAndSameCharsetAndSameParametersAndDifferentCharset() {
+        MediaType mediaType1 = new MediaType("text", "plain");
+        MediaType mediaType2 = new MediaType("text/plain; charset=UTF-8");
+        assertFalse(mediaType1.equals(mediaType2));
+    }
+}
+
+--------------------------------------------
+Error in MediaType_equals_18_0_Test: line -1 : Annotation processing is enabled because one or more processors were found
+  on the class path. A future release of javac may disable annotation processing
+  unless at least one processor is specified by name (-processor), or a search
+  path is specified (--processor-path, --processor-module-path), or annotation
+  processing is enabled explicitly (-proc:only, -proc:full).
+  Use -Xlint:-options to suppress this message.
+  Use -proc:none to disable annotation processing.
+Error in MediaType_equals_18_0_Test: line -1 : Supported source version 'RELEASE_17' from annotation processor 'org.apache.tika.annotation.TikaComponentProcessor' less than -source '21'
+Error in MediaType_equals_18_0_Test: line 68 : no suitable constructor found for MediaType(java.lang.String)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,int) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.nio.charset.Charset) is not applicable
+      (actual and formal argument lists differ in length)
+Error in MediaType_equals_18_0_Test: line 75 : no suitable constructor found for MediaType(java.lang.String)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,int) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.nio.charset.Charset) is not applicable
+      (actual and formal argument lists differ in length)
+Error in MediaType_equals_18_0_Test: line 82 : no suitable constructor found for MediaType(java.lang.String)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,int) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.nio.charset.Charset) is not applicable
+      (actual and formal argument lists differ in length)
+Error in MediaType_equals_18_0_Test: line 89 : no suitable constructor found for MediaType(java.lang.String)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,int) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.nio.charset.Charset) is not applicable
+      (actual and formal argument lists differ in length)
+Error in MediaType_equals_18_0_Test: line 96 : no suitable constructor found for MediaType(java.lang.String)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,int) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.nio.charset.Charset) is not applicable
+      (actual and formal argument lists differ in length)
+Error in MediaType_equals_18_0_Test: line 103 : no suitable constructor found for MediaType(java.lang.String)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,int) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.nio.charset.Charset) is not applicable
+      (actual and formal argument lists differ in length)
+Error in MediaType_equals_18_0_Test: line 110 : no suitable constructor found for MediaType(java.lang.String)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,int) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.nio.charset.Charset) is not applicable
+      (actual and formal argument lists differ in length)
+Error in MediaType_equals_18_0_Test: line 117 : no suitable constructor found for MediaType(java.lang.String)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,int) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.nio.charset.Charset) is not applicable
+      (actual and formal argument lists differ in length)
+Error in MediaType_equals_18_0_Test: line 124 : no suitable constructor found for MediaType(java.lang.String)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,int) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.nio.charset.Charset) is not applicable
+      (actual and formal argument lists differ in length)
+Error in MediaType_equals_18_0_Test: line 131 : no suitable constructor found for MediaType(java.lang.String)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(java.lang.String,int) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.util.Map<java.lang.String,java.lang.String>) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.lang.String,java.lang.String) is not applicable
+      (actual and formal argument lists differ in length)
+    constructor org.apache.tika.mime.MediaType.MediaType(org.apache.tika.mime.MediaType,java.nio.charset.Charset) is not applicable
+      (actual and formal argument lists differ in length)
