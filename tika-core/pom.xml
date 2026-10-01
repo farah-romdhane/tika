@@ -166,8 +166,8 @@
             <param>org.apache.tika.mime.MediaType</param>
           </targetClasses>
           <targetTests>
-            <param>org.apache.tika.io.EndianUtilsTest</param>
-            <param>org.apache.tika.mime.MediaTypeTest</param>
+            <param>org.apache.tika.io.EndianUtils*Test</param>
+            <param>org.apache.tika.mime.MediaType*Test</param>
           </targetTests>
           <outputFormats>
             <param>HTML</param>
