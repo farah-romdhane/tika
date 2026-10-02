@@ -16,9 +16,10 @@
  */
 package org.apache.tika.mime;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Test;
 
 // [CORRECTION C8] retire @ExtendWith(MockitoExtension.class), le champ @Mock et setUp() :
 //   le mock n'etait jamais utilise et faisait planter le test
