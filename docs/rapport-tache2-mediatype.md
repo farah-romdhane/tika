@@ -86,8 +86,30 @@ Trois faits du code expliquent presque tous les échecs :
 | Nettoyage d'environnement | 1 | `@Mock` inutilisé retiré dans audio |
 | Fichier non-test retiré | 1 | `MediaType_Suite.java`, qui aurait exécuté les tests deux fois |
 | Fichiers inchangés | 3 | hasParameters, hashCode, toString |
+| Corrections de style (aucun changement de logique) | 34 | imports avec étoile remplacés par des imports explicites dans les 9 fichiers |
 
 Après correction : **34 tests, tous verts**.
+### Conformité aux conventions du projet
+
+Après le push, l'intégration continue (workflow GitHub Actions de la tâche 2) a échoué
+à l'étape `checkstyle`, avant même l'exécution des tests, avec 34 erreurs. Ces erreurs
+n'étaient pas visibles en local, parce que nos commandes désactivaient Checkstyle
+(`-Dcheckstyle.skip=true`).
+
+Les 34 erreurs relèvent toutes de la même règle, `AvoidStarImport`, et se trouvent
+toutes dans les 9 fichiers générés par le LLM. ChatUniTest produit systématiquement des
+imports avec étoile (`Assertions.*`, `Mockito.*`, `org.junit.jupiter.api.*`,
+`org.mockito.*`), alors que les conventions de Tika les interdisent. Les tests écrits à
+la main (`MediaTypeTest` et `MediaTypeManualTest`) ne déclenchent aucune erreur.
+
+La correction remplace chaque import avec étoile par les imports explicites réellement
+utilisés et supprime les imports Mockito inutilisés. Nous avons vérifié avec `git diff`
+qu'aucune ligne autre que des imports n'a été modifiée. Les imports n'ont aucun effet
+sur le bytecode exécuté, donc les scores PIT des sections 5 et 7 restent valables.
+
+Cette étape montre une limite supplémentaire de la génération automatique : en plus
+des oracles, le code produit ne respecte pas les conventions du projet et ne passerait
+pas l'intégration continue sans retouche manuelle.
 
 ## 4. Comparaison qualitative des oracles
 
