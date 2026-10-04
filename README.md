@@ -5,9 +5,6 @@
 | ROMDHANE Farah | farah-romdhane | `org.apache.tika.io.EndianUtils` |
 | KAISSI Ayman | Ayman4401 | `org.apache.tika.mime.MediaType` |
 
-Ce dépôt est un fork de [umontreal-diro/tika](https://github.com/umontreal-diro/tika). Le README d'origine de Tika
-est maintenant dans [`README-tika.md`](README-tika.md).
-
 En résumé, on a pris deux classes de `tika-core`, on a généré des tests avec ChatUniTest et un modèle local
 (qwen2.5-coder:7b avec Ollama), on les a corrigés, puis on a ajouté nos propres tests pour les mutants qui restaient.
 
@@ -277,5 +274,6 @@ générées par les mutateurs par défaut de PIT.
 
 Les tests `*_Test.java` ont été générés par ChatUniTest avec `qwen2.5-coder:7b`, comme demandé dans l'énoncé.
 On a aussi utilisé Claude (Anthropic) comme assistant pendant le travail : pour comprendre les outils et les
-erreurs, configurer Maven, PIT et GitHub Actions, analyser les mutants, proposer des tests et rédiger ce README.
+erreurs, configurer Maven, PIT et GitHub Actions, analyser les mutants et proposer des tests .
 On a vérifié les résultats en lançant nous-mêmes les tests et PIT, et tous les chiffres viennent de nos exécutions.
+On a aussi fait la réduction et la documentation par nous mêmes. 
