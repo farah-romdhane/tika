@@ -274,6 +274,6 @@ générées par les mutateurs par défaut de PIT.
 
 Les tests `*_Test.java` ont été générés par ChatUniTest avec `qwen2.5-coder:7b`, comme demandé dans l'énoncé.
 On a aussi utilisé Claude (Anthropic) comme assistant pendant le travail : pour comprendre les outils et les
-erreurs, configurer Maven, PIT et GitHub Actions, analyser les mutants et proposer des tests .
+erreurs, configurer Maven, PIT et GitHub Actions, analyser les mutants, analyser les mutants, proposer des tests et rédiger une première version de ce README.
 On a vérifié les résultats en lançant nous-mêmes les tests et PIT, et tous les chiffres viennent de nos exécutions.
-On a aussi fait la réduction et la documentation par nous mêmes. 
+
