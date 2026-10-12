@@ -41,11 +41,11 @@ Rapport détaillé pour `MediaType` : [`docs/rapport-tache2-mediatype.md`](docs/
 
 **Avant** (tests originaux seulement) :
 
-![Rapport PIT avant : 84/291 mutants tués](tika/docs/pit/image/pit-avant.png)
+![Rapport PIT avant : 84/291 mutants tués](docs/pit/image/pit-avant.png)
 
 **Après** (tests originaux + tests de l'IA corrigés + nos tests, rapport fusionné) :
 
-![Rapport PIT après : 288/291 mutants tués](tika/docs/pit/image/pit-apres.png)
+![Rapport PIT après : 288/291 mutants tués](docs/pit/image/pit-apres.png)
 
 | | Couverture de lignes | Score de mutation | Force des tests |
 |---|---|---|---|
