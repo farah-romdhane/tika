@@ -13,6 +13,50 @@ En résumé, on a pris deux classes de `tika-core`, on a généré des tests ave
 | `EndianUtils` (206 mutants) | 18 % | 50 % | 99 % (204/206) |
 | `MediaType` (85 mutants) | 59 % | 75 % | 99 % (84/85) |
 
+## Sommaire
+
+- [Vue d'ensemble : avant et après](#vue-densemble--avant-et-après)
+- [1. Choix des classes](#1-choix-des-classes)
+- [2. ChatUniTest dans Maven](#2-chatunitest-dans-maven)
+- [3. Les tests générés](#3-les-tests-générés)
+  - [3.1 Où sont-ils](#31-où-sont-ils)
+  - [3.2 Compilation et exécution sans intervention](#32-compilation-et-exécution-sans-intervention)
+  - [3.3 Corrections pour EndianUtils](#33-corrections-pour-endianutils)
+  - [3.4 Corrections pour MediaType](#34-corrections-pour-mediatype)
+  - [3.5 Deux façons de corriger](#35-deux-façons-de-corriger)
+- [4. Oracles de l'IA vs tests écrits à la main](#4-oracles-de-lia-vs-tests-écrits-à-la-main)
+- [5. Analyse de mutation et mutants détectés](#5-analyse-de-mutation-et-mutants-détectés)
+  - [5.1 Mutants tués par les tests générés (EndianUtils)](#51-mutants-tués-par-les-tests-générés-endianutils)
+  - [5.2 Mutants tués par les tests générés (MediaType)](#52-mutants-tués-par-les-tests-générés-mediatype)
+- [6. Nos tests](#6-nos-tests)
+  - [6.1 Tests manuels pour EndianUtils](#61-tests-manuels-pour-endianutils)
+  - [6.2 Tests manuels pour MediaType](#62-tests-manuels-pour-mediatype)
+- [7. GitHub Action](#7-github-action)
+- [8. Conclusion et limites](#8-conclusion-et-limites)
+- [9. Utilisation de l'IA](#9-utilisation-de-lia)
+
+Rapport détaillé pour `MediaType` : [`docs/rapport-tache2-mediatype.md`](docs/rapport-tache2-mediatype.md).
+
+## Vue d'ensemble : avant et après
+
+**Avant** (tests originaux seulement) :
+
+![Rapport PIT avant : 84/291 mutants tués](tika/docs/pit/image/pit-avant.png)
+
+**Après** (tests originaux + tests de l'IA corrigés + nos tests, rapport fusionné) :
+
+![Rapport PIT après : 288/291 mutants tués](tika/docs/pit/image/pit-apres.png)
+
+| | Couverture de lignes | Score de mutation | Force des tests |
+|---|---|---|---|
+| Avant | 49 % (137/277) | 29 % (84/291) | 81 % (84/104) |
+| Après | 99 % (275/277) | 99 % (288/291) | 99 % (288/291) |
+
+Dans la capture « avant », `MediaType` apparaît à 54 % (46/85) et non à 59 % : cette mesure a été faite dans un
+autre ordre d'exécution, et le cache statique `SIMPLE_TYPES` change le résultat (voir
+[section 1](#1-choix-des-classes) et [section 6.2](#62-tests-manuels-pour-mediatype)). Les 3 mutants restants
+dans la capture « après » sont équivalents.
+
 ## 1. Choix des classes
 
 On a choisi `tika-core` parce que les classes sont petites, avec peu de dépendances, et que le module compile vite.
@@ -30,9 +74,9 @@ Dans `EndianUtils`, seules `readUE7`, `readUIntLE`, `readUIntBE` et `readIntME` 
 Les deux classes ont donc du code non couvert et des mutants vivants. Rapports : [`docs/rapports/jacoco-avant/`](docs/rapports/jacoco-avant/),
 [`docs/rapports/pit-avant/`](docs/rapports/pit-avant/) et [`docs/pit/mediatype-avant/`](docs/pit/mediatype-avant/).
 
-Petite remarque : une première mesure de `MediaType` faite séparément donnait 54 % au lieu de 59 %. La différence
-vient du cache statique `SIMPLE_TYPES` (voir section 6.2), donc on a gardé les trois mesures faites dans les mêmes
-conditions.
+Petite remarque : une première mesure de `MediaType` faite avec `EndianUtils` donnait 54 % au lieu de 59 %. La
+différence vient du cache statique `SIMPLE_TYPES` (voir [section 6.2](#62-tests-manuels-pour-mediatype)), donc on a
+gardé les trois mesures de `MediaType` faites dans les mêmes conditions.
 
 ## 2. ChatUniTest dans Maven
 
@@ -64,7 +108,7 @@ La génération a pris 4 h 52 pour `EndianUtils` et 37 min pour `MediaType`, sur
 
 ## 3. Les tests générés
 
-### 3.1 Où sont-ils ?
+### 3.1 Où sont-ils
 
 | | `EndianUtils` | `MediaType` |
 |---|---|---|
@@ -73,7 +117,7 @@ La génération a pris 4 h 52 pour `EndianUtils` et 37 min pour `MediaType`, sur
 | Journal de génération | [`chatunitest-endianutils-log.txt`](tika-core/chatunitest-endianutils-log.txt) | [`chatunitest-mediatype-log.txt`](tika-core/chatunitest-mediatype-log.txt) |
 | Erreurs de compilation des tests rejetés | [`docs/chatunitest/endianutils-erreurs/`](docs/chatunitest/endianutils-erreurs/) | [`docs/chatunitest/mediatype-erreurs/`](docs/chatunitest/mediatype-erreurs/) |
 
-### 3.2 Compilent-ils et s'exécutent-ils sans intervention ?
+### 3.2 Compilation et exécution sans intervention
 
 | | `EndianUtils` | `MediaType` |
 |---|---|---|
@@ -95,7 +139,7 @@ Les imports avec étoile (`Assertions.*`, `org.mockito.*`…) sont refusés par 
 échouer le build avant même les tests. On a vérifié avec `git diff` que seules les lignes `import` ont changé, donc
 les scores PIT ne sont pas affectés. Les tests passent maintenant avec Checkstyle activé.
 
-### 3.3 Corrections pour `EndianUtils`
+### 3.3 Corrections pour EndianUtils
 
 On a remplacé chaque oracle faux par la bonne valeur, calculée à la main à partir du code et de l'ordre des octets.
 On partait du message de Maven (`expected <…> but was <…>`) et on vérifiait qui avait raison : c'était toujours
@@ -109,12 +153,13 @@ l'IA qui se trompait. Les 19 corrections sont marquées `// CORRECTION MANUELLE`
 | message ou type d'exception inventé | `NullPointerException` pour un tableau vide | 3 |
 | oublie que la valeur est non signée | `getUIntBE(FF FF FF FF)` : attendu -1, correct 4294967295 | 1 |
 
-### 3.4 Corrections pour `MediaType`
+### 3.4 Corrections pour MediaType
 
 Ici on a été plus strict : on a seulement retiré les assertions fausses, sans les remplacer. Les corrections sont
 marquées `[CORRECTION Cn]` dans le code. Presque toutes les erreurs viennent du fait que le modèle croit que
 `MediaType` valide ses entrées : il attend des exceptions que `parse` ne lance jamais (elle retourne `null`). Il
-attendait aussi `-1` pour `compareTo` alors que seul le signe compte.
+attendait aussi `-1` pour `compareTo` alors que seul le signe compte. Le détail fichier par fichier est dans le
+[rapport `MediaType`](docs/rapport-tache2-mediatype.md#3-correction-minimale).
 
 ### 3.5 Deux façons de corriger
 
@@ -151,7 +196,8 @@ En gros, l'IA choisit souvent de bons cas à tester, mais elle devine le résult
 PIT 1.19.1 avec le plugin JUnit 5, mutateurs par défaut. On a lancé PIT trois fois en ajoutant les groupes de tests
 un par un dans `<targetTests>`. Rapports : [`docs/rapports/`](docs/rapports/) pour `EndianUtils`,
 [`docs/pit/`](docs/pit/) pour `MediaType`, et le rapport final après la fusion de nos deux parties dans
-[`docs/rapports/pit-final-fusion/`](docs/rapports/pit-final-fusion/) (288/291).
+[`docs/rapports/pit-final-fusion/`](docs/rapports/pit-final-fusion/) (288/291, voir la
+[vue d'ensemble](#vue-densemble--avant-et-après)).
 
 | | Originaux | + IA | + nos tests |
 |---|---|---|---|
@@ -160,7 +206,7 @@ un par un dans `<targetTests>`. Rapports : [`docs/rapports/`](docs/rapports/) po
 
 Les tests de l'IA ne tuent donc pas tous les mutants.
 
-### 5.1 Mutants détectés par les tests générés : `EndianUtils`
+### 5.1 Mutants tués par les tests générés (EndianUtils)
 
 Les tests de l'IA tuent 65 mutants de plus, presque tous dans les méthodes `get*` (`getIntBE` et
 `getIntLE` 15 chacune, `getLongLE` 8, `getUShortBE` et `getUShortLE` 7). Ces méthodes n'étaient jamais exécutées
@@ -173,7 +219,7 @@ survivants. Parmi eux, 2 sont équivalents : le dernier `i++` de `getIntLE` et `
 ne sert plus après. Les autres demandaient des données que personne n'avait utilisées : `00 00 00 00`, un octet
 `0x00` dans `readUE7`, ou un flux trop court pour `readUIntBE`.
 
-### 5.2 Mutants détectés par les tests générés : `MediaType`
+### 5.2 Mutants tués par les tests générés (MediaType)
 
 Les tests de l'IA tuent 14 mutants de plus (+16 points), tous dans des méthodes que les tests
 d'origine n'appelaient pas :
@@ -194,7 +240,9 @@ Ce sont justement des cas limites que l'IA avait essayés, mais avec un oracle f
 
 ## 6. Nos tests
 
-### 6.1 `EndianUtils` : [`EndianUtilsManualTest.java`](tika-core/src/test/java/org/apache/tika/io/EndianUtilsManualTest.java) (16 tests)
+### 6.1 Tests manuels pour EndianUtils
+
+Fichier : [`EndianUtilsManualTest.java`](tika-core/src/test/java/org/apache/tika/io/EndianUtilsManualTest.java) (16 tests).
 
 | Test | Intention | Données | Oracle | Mutants visés |
 |---|---|---|---|---|
@@ -217,7 +265,10 @@ Pour `testReadMethodsDetectMissingByteAtAnyPosition`, on pensait au départ que 
 étaient équivalents, parce qu'avec un `ByteArrayInputStream`, après -1 on a toujours -1. Avec un flux écrit à la
 main, on a pu les tuer. Au premier passage avec 14 tests on était à 85 % ; ce test et `testReadMethodsAllZeros` nous ont amenés à 99 %. Les 2 mutants restants sont les mutants équivalents `i++` → `i--`.
 
-### 6.2 `MediaType` : [`MediaTypeManualTest.java`](tika-core/src/test/java/org/apache/tika/mime/MediaTypeManualTest.java) (14 tests)
+### 6.2 Tests manuels pour MediaType
+
+Fichier : [`MediaTypeManualTest.java`](tika-core/src/test/java/org/apache/tika/mime/MediaTypeManualTest.java) (14 tests).
+Analyse complète dans le [rapport `MediaType`](docs/rapport-tache2-mediatype.md#6-tests-ajoutés-manuellement).
 
 | Test | Intention | Données | Oracle | Mutants visés |
 |---|---|---|---|---|
@@ -239,11 +290,12 @@ main, on a pu les tuer. Au premier passage avec 14 tests on était à 85 % ; ce 
 Certains mutants de `isSimpleName` ne changent pas la valeur retournée, seulement le fait que l'objet est mis en
 cache. Le seul moyen de les tuer est `assertSame`. Et comme `SIMPLE_TYPES` est statique et que PIT réutilise la
 JVM, une chaîne déjà mise en cache par un autre test faussait le résultat. On utilise donc un UUID pour avoir un
-nom jamais vu. C'est aussi ce qui explique l'écart entre 54 % et 59 % mentionné à la section 1.
+nom jamais vu. C'est aussi ce qui explique l'écart entre 54 % et 59 % mentionné à la [section 1](#1-choix-des-classes).
 
 Résultat : 84/85. Il y a un mutant `TIMED_OUT` (boucle infinie dans `parseParameters`), que PIT compte comme
 détecté. Le dernier mutant est équivalent : à la ligne 257, PIT remplace `return null` par `return null`. À cause
-du bloc `synchronized`, il ne voit pas que la valeur est déjà `null`.
+du bloc `synchronized`, il ne voit pas que la valeur est déjà `null`
+([explication détaillée](docs/rapport-tache2-mediatype.md#7-pourquoi-pas-8585--le-mutant-équivalent-de-la-ligne-257)).
 
 ## 7. GitHub Action
 
@@ -274,6 +326,6 @@ générées par les mutateurs par défaut de PIT.
 
 Les tests `*_Test.java` ont été générés par ChatUniTest avec `qwen2.5-coder:7b`, comme demandé dans l'énoncé.
 On a aussi utilisé Claude (Anthropic) comme assistant pendant le travail : pour comprendre les outils et les
-erreurs, configurer Maven, PIT et GitHub Actions, analyser les mutants, analyser les mutants, proposer des tests et rédiger une première version de ce README.
-On a vérifié les résultats en lançant nous-mêmes les tests et PIT, et tous les chiffres viennent de nos exécutions.
-
+erreurs, configurer Maven, PIT et GitHub Actions, analyser les mutants, proposer des tests et rédiger une première
+version de ce README. On a vérifié les résultats en lançant nous-mêmes les tests et PIT, et tous les chiffres
+viennent de nos exécutions.
