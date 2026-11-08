@@ -1,331 +1,363 @@
-# IFT3913 – Tâche 2
+# IFT3913 – Tâche 3
 
-| Nom complet | Identifiant GitHub | Classe |
+| Nom complet | Identifiant GitHub |
+|---|---|
+| ROMDHANE Farah | farah-romdhane |
+| KAISSI Ayman | Ayman4401 |
+
+Tout le travail de la tâche 3 est sur la branche **`tache3`** de ce fork. La branche `main` contient toujours la
+tâche 2 (son rapport est dans le `README.md` de `main`). Le README d'origine de Tika est dans
+[`README-tika.md`](README-tika.md).
+
+En résumé :
+
+| Élément | Où |
+|---|---|
+| Workflow modifié (tests + Semgrep + rickroll) | [`.github/workflows/tache2-tests.yml`](.github/workflows/tache2-tests.yml) |
+| Action réutilisable qui rickroll | [`.github/actions/rickroll/action.yml`](.github/actions/rickroll/action.yml) |
+| Rapports Semgrep avant / après | [`docs/semgrep/`](docs/semgrep/) |
+| Captures d'écran | [`docs/semgrep/captures/`](docs/semgrep/captures/) |
+| Code modifié (7 vulnérabilités) | 5 fichiers de `tika-core`, voir la section 4 |
+
+| | Avant | Après |
 |---|---|---|
-| ROMDHANE Farah | farah-romdhane | `org.apache.tika.io.EndianUtils` |
-| KAISSI Ayman | Ayman4401 | `org.apache.tika.mime.MediaType` |
+| Alertes Semgrep dans `tika-core` | 3 | 11 |
+| Nouvelles alertes (font échouer le build) | 0 | 8 |
+| Résultat du workflow | Vert | Rouge (voulu) |
 
-En résumé, on a pris deux classes de `tika-core`, on a généré des tests avec ChatUniTest et un modèle local
-(qwen2.5-coder:7b avec Ollama), on les a corrigés, puis on a ajouté nos propres tests pour les mutants qui restaient.
+## 1. Semgrep sur Tika avant nos modifications
 
-| Score de mutation (PIT) | Tests originaux | + tests de l'IA | + nos tests |
-|---|---|---|---|
-| `EndianUtils` (206 mutants) | 18 % | 50 % | 99 % (204/206) |
-| `MediaType` (85 mutants) | 59 % | 75 % | 99 % (84/85) |
+On a lancé Semgrep 1.183.0 (image Docker `semgrep/semgrep`) sur `tika-core/src/main/java`, avec les règles
+`p/java` (sécurité Java) et `p/secrets` (mots de passe, clés et jetons écrits dans le code). Le rapport est dans
+[`semgrep-avant.txt`](docs/semgrep/semgrep-avant.txt) et [`semgrep-avant.json`](docs/semgrep/semgrep-avant.json).
 
-## Sommaire
+Semgrep trouve 3 alertes. On a regardé le code à chaque endroit :
 
-- [Vue d'ensemble : avant et après](#vue-densemble--avant-et-après)
-- [1. Choix des classes](#1-choix-des-classes)
-- [2. ChatUniTest dans Maven](#2-chatunitest-dans-maven)
-- [3. Les tests générés](#3-les-tests-générés)
-  - [3.1 Où sont-ils](#31-où-sont-ils)
-  - [3.2 Compilation et exécution sans intervention](#32-compilation-et-exécution-sans-intervention)
-  - [3.3 Corrections pour EndianUtils](#33-corrections-pour-endianutils)
-  - [3.4 Corrections pour MediaType](#34-corrections-pour-mediatype)
-  - [3.5 Deux façons de corriger](#35-deux-façons-de-corriger)
-- [4. Oracles de l'IA vs tests écrits à la main](#4-oracles-de-lia-vs-tests-écrits-à-la-main)
-- [5. Analyse de mutation et mutants détectés](#5-analyse-de-mutation-et-mutants-détectés)
-  - [5.1 Mutants tués par les tests générés (EndianUtils)](#51-mutants-tués-par-les-tests-générés-endianutils)
-  - [5.2 Mutants tués par les tests générés (MediaType)](#52-mutants-tués-par-les-tests-générés-mediatype)
-- [6. Nos tests](#6-nos-tests)
-  - [6.1 Tests manuels pour EndianUtils](#61-tests-manuels-pour-endianutils)
-  - [6.2 Tests manuels pour MediaType](#62-tests-manuels-pour-mediatype)
-- [7. GitHub Action](#7-github-action)
-- [8. Conclusion et limites](#8-conclusion-et-limites)
-- [9. Utilisation de l'IA](#9-utilisation-de-lia)
+| Fichier (ligne) | Règle | Notre avis |
+|---|---|---|
+| `mime/MimeTypesReader.java` (223) | `saxparserfactory-disallow-doctype-decl-missing` (XXE) | Faux positif |
+| `parser/NetworkParser.java` (68) | `unencrypted-socket` | Vrai, mais voulu |
+| `utils/XMLReaderUtils.java` (307) | `xmlinputfactory-possible-xxe` (XXE) | Faux positif |
 
-Rapport détaillé pour `MediaType` : [`docs/rapport-tache2-mediatype.md`](docs/rapport-tache2-mediatype.md).
+- **`MimeTypesReader`** : Semgrep cherche seulement l'option `disallow-doctype-decl`. Mais le code active
+  `FEATURE_SECURE_PROCESSING` et la classe redéfinit `resolveEntity()` pour renvoyer un flux vide, donc une entité
+  externe n'est jamais lue.
+- **`NetworkParser`** : le socket n'est pas chiffré, mais il n'est utilisé que pour les URI `telnet`, un protocole
+  qui n'est jamais chiffré. Les autres URI passent par `URLConnection`, qui accepte `https`.
+- **`XMLReaderUtils`** : les entités externes sont bien désactivées quelques lignes plus bas
+  (`IS_SUPPORTING_EXTERNAL_ENTITIES` et `SUPPORT_DTD` à `false`), mais par une méthode utilitaire
+  (`tryToSetStaxProperty`) que Semgrep ne suit pas.
 
-## Vue d'ensemble : avant et après
+Le code de départ est donc plutôt propre. Ces 3 alertes ne doivent pas bloquer le build : seules les nouvelles
+vulnérabilités doivent le faire.
 
-**Avant** (tests originaux seulement) :
+## 2. Modification du workflow GitHub Actions
 
-![Rapport PIT avant : 84/291 mutants tués](docs/pit/image/pit-avant.png)
+### 2.1 Ce qu'on a changé
 
-**Après** (tests originaux + tests de l'IA corrigés + nos tests, rapport fusionné) :
+Le workflow du cas d'étude est celui qu'on utilisait déjà pour la tâche 2 (`tache2-tests.yml` : compilation de
+`tika-core`, tests, PIT). Les workflows d'origine de Tika avaient été retirés du fork pendant la tâche 2, parce
+qu'ils prenaient plus d'une heure. On a renommé ce workflow « CI Tika - tests et Semgrep » et on lui a ajouté un
+deuxième job, `semgrep` :
 
-![Rapport PIT après : 288/291 mutants tués](docs/pit/image/pit-apres.png)
-
-| | Couverture de lignes | Score de mutation | Force des tests |
-|---|---|---|---|
-| Avant | 49 % (137/277) | 29 % (84/291) | 81 % (84/104) |
-| Après | 99 % (275/277) | 99 % (288/291) | 99 % (288/291) |
-
-Dans la capture « avant », `MediaType` apparaît à 54 % (46/85) et non à 59 % : cette mesure a été faite dans un
-autre ordre d'exécution, et le cache statique `SIMPLE_TYPES` change le résultat (voir
-[section 1](#1-choix-des-classes) et [section 6.2](#62-tests-manuels-pour-mediatype)). Les 3 mutants restants
-dans la capture « après » sont équivalents.
-
-## 1. Choix des classes
-
-On a choisi `tika-core` parce que les classes sont petites, avec peu de dépendances, et que le module compile vite.
-Comme la génération avec un modèle local est lente et que PIT relance les tests des centaines de fois, ça comptait.
-
-On a lancé JaCoCo (déjà configuré dans Tika) et PIT avec seulement les tests existants :
-
-| Classe | Tests existants | Lignes couvertes | Méthodes couvertes | Score de mutation |
-|---|---|---|---|---|
-| `EndianUtils` | `EndianUtilsTest` (4 tests) | 26 % | 4 / 32 | 18 % (14 survivants, 154 non couverts) |
-| `MediaType` | `MediaTypeTest` (9 tests) | 68 % | 10 / 28 | 59 % (2 survivants, 33 non couverts) |
-
-Dans `EndianUtils`, seules `readUE7`, `readUIntLE`, `readUIntBE` et `readIntME` sont testées. Dans `MediaType`,
-`equals`, `hashCode`, `compareTo`, `getBaseType`, `set`, `union`, `audio` et `video` ne sont jamais appelées.
-Les deux classes ont donc du code non couvert et des mutants vivants. Rapports : [`docs/rapports/jacoco-avant/`](docs/rapports/jacoco-avant/),
-[`docs/rapports/pit-avant/`](docs/rapports/pit-avant/) et [`docs/pit/mediatype-avant/`](docs/pit/mediatype-avant/).
-
-Petite remarque : une première mesure de `MediaType` faite avec `EndianUtils` donnait 54 % au lieu de 59 %. La
-différence vient du cache statique `SIMPLE_TYPES` (voir [section 6.2](#62-tests-manuels-pour-mediatype)), donc on a
-gardé les trois mesures de `MediaType` faites dans les mêmes conditions.
-
-## 2. ChatUniTest dans Maven
-
-On a ajouté le plugin `chatunitest-maven-plugin` 2.1.1 dans [`tika-core/pom.xml`](tika-core/pom.xml) :
-
-```xml
-<configuration>
-  <apiKeys>ollama</apiKeys>
-  <model>code-llama</model>
-  <url>http://localhost:11434/v1/chat/completions</url>
-  <testNumber>1</testNumber>
-  <maxRounds>3</maxRounds>
-  <maxPromptTokens>3000</maxPromptTokens>
-  <thread>false</thread>
-  <temperature>0.2</temperature>
-</configuration>
+```yaml
+semgrep:
+  runs-on: ubuntu-latest
+  container:
+    image: semgrep/semgrep
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+    - name: Semgrep - nouvelles vulnerabilites seulement
+      run: >
+        semgrep scan --config p/java --config p/secrets
+        --baseline-commit "$(git rev-parse semgrep-base)"
+        --error --text-output=semgrep-nouvelles.txt
+        tika-core/src/main/java
+    - name: Semgrep - rapport complet
+      if: always()
+      run: >
+        semgrep scan --config p/java --config p/secrets
+        --json-output=semgrep-complet.json --text-output=semgrep-complet.txt
+        tika-core/src/main/java
+    # + upload des rapports comme artifact
 ```
 
-Puis `mvn chatunitest:class -DselectClass=EndianUtils` (et `MediaType`).
+Si le job `semgrep` échoue, tout le run du workflow est marqué en échec, même si les tests passent.
 
-Ça n'a pas marché du premier coup. ChatUniTest n'accepte que certains noms de modèles, alors on a copié
-`qwen2.5-coder:7b` sous le nom `code-llama` dans Ollama. On avait d'abord essayé `codeqwen:v1.5-chat`, mais aucun
-test ne compilait (il inventait des imports) et les requêtes dépassaient le délai de 5 minutes, d'où aussi
-`maxPromptTokens=3000`. Enfin, la dépendance `chatunitest-starter` demandée par la doc ramène JUnit 4 et de vieilles
-versions de Mockito, ce qui faisait exécuter 0 test avec `mvn test`. Après la génération, on l'a remplacée par
-`mockito-core` et `mockito-junit-jupiter`.
+### 2.2 Nos choix
 
-La génération a pris 4 h 52 pour `EndianUtils` et 37 min pour `MediaType`, sur des portables sans GPU.
+- **Échouer seulement sur les nouvelles vulnérabilités.** Si on lançait juste `semgrep --error`, le build
+  échouerait tout de suite à cause des 3 alertes déjà présentes dans Tika. On a utilisé le mode *diff-aware* de
+  Semgrep : on a mis un tag Git `semgrep-base` sur le commit de départ, et `--baseline-commit` compare chaque
+  commit à ce tag. Semgrep ne garde que les alertes qui n'existaient pas au moment du tag.
+- **Un tag fixe plutôt que le commit précédent.** Si on comparait au commit précédent, une vulnérabilité ajoutée
+  dans un commit disparaîtrait au commit suivant et le build redeviendrait vert. Avec un tag fixe, le build reste
+  rouge tant que la vulnérabilité est dans le code.
+- **`--error`** : Semgrep renvoie le code de sortie 1 s'il trouve au moins une alerte, ce qui fait échouer l'étape.
+  Sans cette option, Semgrep termine toujours avec 0.
+- **Un job séparé des tests.** Les deux jobs tournent en parallèle, et dans le résumé du run on voit tout de suite
+  si l'échec vient des tests ou de la sécurité.
+- **L'image Docker `semgrep/semgrep`** : Semgrep est déjà installé, pas besoin de Python ni de `pip`.
+- **Les règles `p/java` et `p/secrets`** : ensembles officiels de Semgrep pour Java et pour les secrets. Ils ne
+  gardent que les règles de confiance moyenne ou haute, donc peu de faux positifs (voir la section 5 pour la
+  conséquence).
+- **Un 2ᵉ scan complet** (`if: always()`) qui ne bloque rien, pour garder un rapport de toutes les alertes. C'est
+  ce rapport qui sert pour la comparaison avant / après.
 
-## 3. Les tests générés
+Deux problèmes techniques qu'on a dû régler :
 
-### 3.1 Où sont-ils
+- `actions/checkout` ne récupère par défaut que le dernier commit, donc Semgrep ne trouvait pas le tag. D'où
+  `fetch-depth: 0`.
+- Dans le conteneur Docker, Git refuse de travailler dans un dossier qui appartient à un autre utilisateur
+  (*dubious ownership*). La commande `safe.directory` règle ça.
 
-| | `EndianUtils` | `MediaType` |
-|---|---|---|
-| Tests bruts produits par ChatUniTest | [`chatunitest-tests/.../io/`](tika-core/chatunitest-tests/org/apache/tika/io/) | [`chatunitest-tests/.../mime/`](tika-core/chatunitest-tests/org/apache/tika/mime/) |
-| Tests corrigés (exécutés par Maven et PIT) | [`src/test/java/.../io/EndianUtils_*_Test.java`](tika-core/src/test/java/org/apache/tika/io/) | [`src/test/java/.../mime/MediaType_*_Test.java`](tika-core/src/test/java/org/apache/tika/mime/) |
-| Journal de génération | [`chatunitest-endianutils-log.txt`](tika-core/chatunitest-endianutils-log.txt) | [`chatunitest-mediatype-log.txt`](tika-core/chatunitest-mediatype-log.txt) |
-| Erreurs de compilation des tests rejetés | [`docs/chatunitest/endianutils-erreurs/`](docs/chatunitest/endianutils-erreurs/) | [`docs/chatunitest/mediatype-erreurs/`](docs/chatunitest/mediatype-erreurs/) |
+Au début, on avait mis Semgrep dans un workflow à part (`tache3-semgrep.yml`). On l'a ensuite déplacé dans le
+workflow existant, puisque l'énoncé demande de modifier le workflow du cas d'étude. Le contenu des étapes n'a pas
+changé.
 
-### 3.2 Compilation et exécution sans intervention
+### 2.3 Validation
 
-| | `EndianUtils` | `MediaType` |
-|---|---|---|
-| Méthodes traitées | 31 | 11 (constructeurs, accesseurs et méthodes privées ignorés) |
-| Fichiers gardés / tests générés | 19 / 53 | 9 / 48 |
-| Tests qui échouent sans intervention | 16 (28 %) | 19 (40 %) |
+On a testé le workflow avec des commits faits exprès :
 
-Donc non, ils ne s'exécutent pas sans intervention, même si ChatUniTest affiche « compile and execute successfully »
-pour des tests qui échouent ensuite dans Maven. Voici toutes les corrections qu'on a faites :
-
-| Correction | `EndianUtils` | `MediaType` | Effet sur l'exécution |
+| Run | Commit | Attendu | Obtenu |
 |---|---|---|---|
-| Dépendance `chatunitest-starter` remplacée par Mockito (`pom.xml`) | 1 (commune aux deux classes) | | sans elle, 0 test exécuté |
-| Oracles faux | 19 corrigés (10 fichiers) | 15 assertions retirées, 14 tests supprimés | change ce que les tests vérifient |
-| Mock inutile retiré | compté dans les 19 (`getShortBE_16`, mock sur une méthode statique) | 1 (`@Mock` sur `MediaType`) | le test plantait |
-| Imports avec étoile remplacés (Checkstyle) | 19 fichiers | 9 fichiers | aucun : seules les lignes `import` changent |
+| Tache 3 - Semgrep #4 | ajout d'une classe `ExempleHash` qui utilise MD5 | rouge | rouge : 1 alerte `use-of-md5`, `exit code 1` |
+| Tache 3 - Semgrep #5 | suppression de cette classe | vert | vert |
+| CI Tika #44 | les 7 vulnérabilités dans le code de Tika, Semgrep dans le workflow des tests | tests verts, semgrep rouge | tests ✅, semgrep ❌ (8 alertes), run en échec |
 
-Les imports avec étoile (`Assertions.*`, `org.mockito.*`…) sont refusés par le Checkstyle de Tika, ce qui faisait
-échouer le build avant même les tests. On a vérifié avec `git diff` que seules les lignes `import` ont changé, donc
-les scores PIT ne sont pas affectés. Les tests passent maintenant avec Checkstyle activé.
+![Commit avec MD5 : rouge](docs/semgrep/captures/ga-rouge-md5.png)
 
-### 3.3 Corrections pour EndianUtils
+![Retrait du MD5 : vert](docs/semgrep/captures/ga-vert.png)
 
-On a remplacé chaque oracle faux par la bonne valeur, calculée à la main à partir du code et de l'ordre des octets.
-On partait du message de Maven (`expected <…> but was <…>`) et on vérifiait qui avait raison : c'était toujours
-l'IA qui se trompait. Les 19 corrections sont marquées `// CORRECTION MANUELLE` dans le code.
+![Run final : tests verts, Semgrep rouge](docs/semgrep/captures/ci-rouge-semgrep.png)
 
-| Erreur de l'IA | Exemple | Nombre |
+Dans les logs, on voit `Scanning 1 file tracked by git` pour le run #4 : en mode baseline, Semgrep n'analyse que
+les fichiers modifiés depuis le tag. Les 3 alertes de départ n'apparaissent jamais dans le scan qui bloque, ce qui
+montre que la comparaison avec le tag fonctionne.
+
+## 3. Choix des vulnérabilités
+
+On voulait 7 types différents (7 CWE différents) que les règles `p/java` / `p/secrets` détectent vraiment. Pour
+chaque faille, on a ajouté **une nouvelle méthode** dans une classe existante de `tika-core` dont le rôle a un lien
+avec la faille. On n'a pas modifié le code qui existait déjà, pour ne pas changer le comportement de Tika : les
+tests de la tâche 2 passent toujours (job `tests` vert).
+
+| # | Fichier modifié | Méthode ajoutée | Vulnérabilité | CWE | Règle Semgrep |
+|---|---|---|---|---|---|
+| 1 | `metadata/Database.java` | `METADATA_DB_URL` | Identifiants écrits dans l'URL | 798 | `detected-username-and-password-in-uri` |
+| 2 | `metadata/Database.java` | `countRows` | Injection SQL | 89 | `formatted-sql-string` |
+| 3 | `digest/DigestHelper.java` | `quickFingerprint` | Hachage faible (MD5) | 328 | `use-of-md5` |
+| 4 | `detect/XmlRootExtractor.java` | `extractRootElementWithDom` | XXE | 611 | `documentbuilderfactory-disallow-doctype-decl-missing` |
+| 5 | `parser/CryptoParser.java` | `encryptForCache` | Chiffrement cassé (DES en mode ECB) | 327 | `des-is-deprecated`, `ecb-cipher` |
+| 6 | `parser/CryptoParser.java` | `generateTestKeyPair` | Clé trop courte (RSA 512 bits) | 326 | `use-of-weak-rsa-key` |
+| 7 | `io/TikaInputStream.java` | `getFromSocket` | Données en clair sur le réseau | 319 | `unencrypted-socket` |
+
+## 4. Détail de chaque vulnérabilité
+
+### 4.1 Identifiants dans l'URL de connexion (CWE-798)
+
+**Fichier** : `metadata/Database.java`. Cette interface définit les métadonnées que Tika extrait des bases de
+données (nom de table, nombre de lignes…). C'est un endroit naturel pour une connexion à une base.
+
+```java
+String METADATA_DB_URL = "jdbc:postgresql://tikaadmin:Tika2026!@localhost:5432/tika";
+```
+
+**Pourquoi c'est vulnérable** : le nom d'utilisateur et le mot de passe sont dans le code source. Toute personne
+qui a accès au dépôt (ici, il est public) peut se connecter à la base, et changer le mot de passe demande de
+modifier le code. Il faudrait les lire dans une variable d'environnement ou un fichier de configuration privé.
+
+**Semgrep** : `detected-username-and-password-in-uri`, ligne 36. Semgrep masque lui-même le mot de passe dans
+son rapport (`jdbc:***localhost…`).
+
+### 4.2 Injection SQL (CWE-89)
+
+**Fichier** : `metadata/Database.java`, même thème.
+
+```java
+ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM " + tableName)
+```
+
+**Pourquoi c'est vulnérable** : `tableName` est collé directement dans la requête. Si un appelant passe
+`documents; DROP TABLE documents`, la base exécute les deux commandes. Il faudrait valider le nom de table (une
+liste de noms permis), puisqu'un nom de table ne peut pas être passé en paramètre d'un `PreparedStatement`.
+
+**Semgrep** : `formatted-sql-string`, ligne 44.
+
+### 4.3 Hachage MD5 (CWE-328)
+
+**Fichier** : `digest/DigestHelper.java`, la classe de Tika qui calcule les empreintes (*digests*) des documents.
+
+```java
+MessageDigest md = MessageDigest.getInstance("MD5");
+```
+
+**Pourquoi c'est vulnérable** : MD5 n'est plus résistant aux collisions. On peut fabriquer deux documents
+différents avec la même empreinte, donc un document malveillant pourrait être pris pour un document déjà traité.
+Il faudrait utiliser SHA-256, que Tika propose déjà dans sa configuration.
+
+**Semgrep** : `use-of-md5`, ligne 112 (Semgrep propose même de remplacer par `SHA-512`).
+
+### 4.4 XXE (CWE-611)
+
+**Fichier** : `detect/XmlRootExtractor.java`, la classe qui lit un fichier XML pour trouver son élément racine et
+détecter son type. Elle lit des fichiers qui viennent des utilisateurs.
+
+```java
+DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+DocumentBuilder builder = factory.newDocumentBuilder();
+Document document = builder.parse(stream);
+```
+
+**Pourquoi c'est vulnérable** : le parseur accepte les `DOCTYPE` et les entités externes. Un fichier XML qui
+contient `<!ENTITY x SYSTEM "file:///etc/passwd">` fait lire un fichier du serveur. La méthode d'origine de cette
+classe passe par `XMLReaderUtils`, qui désactive ces fonctions. La nôtre ne le fait pas.
+
+**Semgrep** : `documentbuilderfactory-disallow-doctype-decl-missing`, ligne 99.
+
+### 4.5 DES en mode ECB (CWE-327)
+
+**Fichier** : `parser/CryptoParser.java`, la classe de Tika qui déchiffre des documents.
+
+```java
+Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+```
+
+**Pourquoi c'est vulnérable** : DES utilise une clé de 56 bits, qu'on peut retrouver par force brute. Le mode ECB
+chiffre deux blocs identiques de la même façon, donc on voit des motifs dans le texte chiffré, et il n'y a aucune
+vérification d'intégrité. Il faudrait utiliser AES en mode GCM.
+
+**Semgrep** : 2 alertes sur la ligne 115, `des-is-deprecated` et `ecb-cipher`.
+
+### 4.6 Clé RSA de 512 bits (CWE-326)
+
+**Fichier** : `parser/CryptoParser.java`, même classe de chiffrement.
+
+```java
+KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+generator.initialize(512);
+```
+
+**Pourquoi c'est vulnérable** : une clé RSA de 512 bits peut être factorisée en quelques heures avec du matériel
+ordinaire. Le NIST recommande au moins 2048 bits.
+
+**Semgrep** : `use-of-weak-rsa-key`, ligne 124.
+
+### 4.7 Socket non chiffré (CWE-319)
+
+**Fichier** : `io/TikaInputStream.java`, la classe qui ouvre les flux à analyser. Elle sait déjà lire un fichier
+ou une URL, donc une méthode qui lit depuis le réseau y a sa place.
+
+```java
+Socket socket = new Socket(host, port);
+return get(socket.getInputStream());
+```
+
+**Pourquoi c'est vulnérable** : le document passe en clair sur le réseau. Quelqu'un sur le même réseau peut le
+lire ou le modifier avant que Tika l'analyse. Il faudrait un `SSLSocket`. Ce type d'alerte existait déjà dans
+`NetworkParser`, mais Semgrep compte bien la nôtre comme nouvelle, parce qu'elle est à un autre endroit.
+
+**Semgrep** : `unencrypted-socket`, ligne 211.
+
+## 5. Ce que Semgrep ne détecte pas
+
+Notre premier essai contenait d'autres failles, mises dans des classes à part. Semgrep n'en détectait que 3 sur 7.
+Il ne voyait pas :
+
+| Code | Vulnérabilité | CWE |
 |---|---|---|
-| inverse big-endian et little-endian | `getIntBE` de `01 02 03 04` : attendu `0x04030201`, correct `0x01020304` | 5 |
-| se trompe sur le nombre d'octets lus, sur l'offset, ou invente une valeur | `getIntLE` comparé à une valeur sur 8 octets | 6 |
-| ne comprend pas l'encodage de `readUE7` | attend `0x0102030405060708` alors que `0x01` termine la lecture (résultat 1) | 4 |
-| message ou type d'exception inventé | `NullPointerException` pour un tableau vide | 3 |
-| oublie que la valeur est non signée | `getUIntBE(FF FF FF FF)` : attendu -1, correct 4294967295 | 1 |
+| `new ProcessBuilder("sh", "-c", "pdftotext " + nomFichier)` | Injection de commande | 78 |
+| `new ObjectInputStream(donnees).readObject()` | Désérialisation non sûre | 502 |
+| `new Random().nextLong()` pour créer un jeton | Aléatoire prévisible | 330 |
+| `MOT_DE_PASSE_SECRET = "q8Zr2…"` | Mot de passe dans une constante | 798 |
 
-### 3.4 Corrections pour MediaType
+Les fichiers étaient bien analysés, mais sans alerte. Des règles existent pour ces cas dans le dépôt public de
+Semgrep, mais ce sont des règles d'« audit » avec `confidence: LOW`, et `p/java` / `p/secrets` ne gardent que les
+règles de confiance moyenne ou haute. C'est pour ça qu'on a choisi d'autres types pour les 7 vulnérabilités.
 
-Ici on a été plus strict : on a seulement retiré les assertions fausses, sans les remplacer. Les corrections sont
-marquées `[CORRECTION Cn]` dans le code. Presque toutes les erreurs viennent du fait que le modèle croit que
-`MediaType` valide ses entrées : il attend des exceptions que `parse` ne lance jamais (elle retourne `null`). Il
-attendait aussi `-1` pour `compareTo` alors que seul le signe compte. Le détail fichier par fichier est dans le
-[rapport `MediaType`](docs/rapport-tache2-mediatype.md#3-correction-minimale).
+Ça montre une limite importante : un build vert ne veut pas dire que le code est sûr. Le résultat dépend beaucoup
+des règles choisies. Un ensemble plus large (comme `p/security-audit`) détecterait plus de cas, mais avec plus de
+faux positifs dans le code existant de Tika.
 
-### 3.5 Deux façons de corriger
+## 6. Comparaison avant / après
 
-On n'a donc pas corrigé les deux classes de la même façon. La méthode utilisée pour `MediaType` mesure mieux ce
-que l'IA détecte toute seule. Pour `EndianUtils`, le score « après l'IA » (50 %) est sûrement un peu optimiste,
-puisque certains oracles viennent de nous.
+Rapports complets : [`semgrep-avant.txt`](docs/semgrep/semgrep-avant.txt) et
+[`semgrep-apres.txt`](docs/semgrep/semgrep-apres.txt) (et les versions `.json`).
 
-## 4. Oracles de l'IA vs tests écrits à la main
+| Fichier | Ligne | Règle | Avant | Après |
+|---|---|---|---|---|
+| `mime/MimeTypesReader.java` | 223 | `saxparserfactory-disallow-doctype-decl-missing` | ✔ | ✔ |
+| `parser/NetworkParser.java` | 68 | `unencrypted-socket` | ✔ | ✔ |
+| `utils/XMLReaderUtils.java` | 307 | `xmlinputfactory-possible-xxe` | ✔ | ✔ |
+| `metadata/Database.java` | 36 | `detected-username-and-password-in-uri` | | **nouvelle** |
+| `metadata/Database.java` | 44 | `formatted-sql-string` | | **nouvelle** |
+| `digest/DigestHelper.java` | 112 | `use-of-md5` | | **nouvelle** |
+| `detect/XmlRootExtractor.java` | 99 | `documentbuilderfactory-disallow-doctype-decl-missing` | | **nouvelle** |
+| `parser/CryptoParser.java` | 115 | `des-is-deprecated` | | **nouvelle** |
+| `parser/CryptoParser.java` | 115 | `ecb-cipher` | | **nouvelle** |
+| `parser/CryptoParser.java` | 124 | `use-of-weak-rsa-key` | | **nouvelle** |
+| `io/TikaInputStream.java` | 211 | `unencrypted-socket` | | **nouvelle** |
+| **Total** | | | **3** | **11** |
 
-Les tests d'origine sont peu nombreux mais justes et ciblés. Dans `EndianUtilsTest`, les données contiennent des
-octets comme `0xFF` ou `0xF0`, ce qui vérifie que les valeurs sont lues comme non signées. Pour `MediaType`, PIT
-montre que les tests d'origine tuent 96 % des mutants du code qu'ils exécutent.
+Les 3 alertes de départ sont identiques avant et après, puisqu'on n'a pas touché à ces lignes. Les 8 nouvelles
+correspondent exactement à nos 7 vulnérabilités (DES/ECB en donne 2). Le scan en mode baseline du workflow trouve
+les mêmes 8 alertes et seulement celles-là.
 
-Les tests de l'IA couvrent beaucoup plus de méthodes, et certains sont bons : `FF FF FF FE` qui doit donner
-4294967294 et pas -2, plusieurs cas limites sur les offsets (négatif, trop grand, tableau vide, `null`), ou les
-tests de `toString` et `hasParameters` de `MediaType`. Mais on a aussi trouvé :
+Le workflow de la branche `tache3` reste donc rouge à la fin, et c'est voulu : il montre que le build bloque bien
+le code qui ajoute des vulnérabilités.
 
-- des oracles devinés au lieu d'être déduits du code (sections précédentes) ;
-- des tests qui ne peuvent pas échouer : un `try`/`catch` sans `fail()` dans `getUShortBE_18`, et un test de
-  `hashCode` sans aucune assertion ;
-- des données qui ne testent pas l'essentiel : presque toujours `0x01` à `0x08`, jamais un octet négatif.
-  `ubyteToInt` est testé seulement avec `0x01`, alors que tout l'intérêt est `0xFF → 255` ;
-- des doublons (8 tests identiques dans `parse`) et de la réflexion pour appeler des méthodes publiques ;
-- un test qui passe pour une mauvaise raison : `invoke(instance, null)` lance une exception à cause de la
-  réflexion, pas à cause de `MediaType`.
+## 7. Rickroll quand un test échoue
 
-Les tests d'origine ne sont pas parfaits non plus : dans `testReadUIntBE`, le cas du flux trop court appelle
-`readUIntLE` au lieu de `readUIntBE`, sûrement un copier-coller.
+L'énoncé parle de la suite de tests de graphhopper ; dans notre cas, le cas d'étude est Tika, donc on l'a fait sur
+la suite de tests de Tika lancée par le workflow.
 
-En gros, l'IA choisit souvent de bons cas à tester, mais elle devine le résultat attendu.
+### 7.1 L'action
 
-## 5. Analyse de mutation et mutants détectés
+On a écrit notre propre action réutilisable, [`.github/actions/rickroll/action.yml`](.github/actions/rickroll/action.yml).
+C'est une action *composite* avec une seule étape `bash`, sans dépendance externe. Elle :
 
-PIT 1.19.1 avec le plugin JUnit 5, mutateurs par défaut. On a lancé PIT trois fois en ajoutant les groupes de tests
-un par un dans `<targetTests>`. Rapports : [`docs/rapports/`](docs/rapports/) pour `EndianUtils`,
-[`docs/pit/`](docs/pit/) pour `MediaType`, et le rapport final après la fusion de nos deux parties dans
-[`docs/rapports/pit-final-fusion/`](docs/rapports/pit-final-fusion/) (288/291, voir la
-[vue d'ensemble](#vue-densemble--avant-et-après)).
+- écrit une erreur dans le log (`::error title=Tests en echec::…`) qui invite à ouvrir le résumé du run ;
+- ajoute au résumé du run (`$GITHUB_STEP_SUMMARY`) le titre « Les tests ont échoué » et une image cliquable
+  présentée comme « le détail de l'erreur ». Le lien ouvre en fait la vidéo *Never Gonna Give You Up*.
 
-| | Originaux | + IA | + nos tests |
+Elle est appelée dans le job `tests`, juste après l'étape qui lance Maven :
+
+```yaml
+- name: Rickroll si les tests echouent
+  if: failure()
+  uses: ./.github/actions/rickroll
+```
+
+`if: failure()` fait que l'étape ne s'exécute que si une étape précédente a échoué. On a préféré écrire notre
+action plutôt qu'utiliser une action externe, pour savoir exactement quel code tourne dans le CI.
+
+### 7.2 Validation
+
+| Run | Commit | Tests | Rickroll |
 |---|---|---|---|
-| `EndianUtils` : tués / survivants / non couverts | 38 / 14 / 154 | 103 / 14 / 89 | 204 / 2 / 0 |
-| `MediaType` : tués / survivants / non couverts | 50 / 2 / 33 | 64 / 4 / 17 | 84 / 1 / 0 |
+| #39 | ajout de l'appel au rickroll | passent | sauté (*skipped*) |
+| #40 | ajout de `EndianUtilsRickrollTest`, qui échoue exprès | 1 échec sur 131 | exécuté |
+| #41 | suppression de ce test | passent | sauté |
 
-Les tests de l'IA ne tuent donc pas tous les mutants.
+Le test du run #40 vérifie `assertEquals(1, EndianUtils.ubyteToInt((byte) 0x02))`. Maven affiche
+`EndianUtilsRickrollTest.testEchecVolontaire:28 expected: <1> but was: <2>`, l'étape Rickroll s'exécute et
+l'analyse PIT qui suit est sautée.
 
-### 5.1 Mutants tués par les tests générés (EndianUtils)
+![Rickroll sauté quand les tests passent](docs/semgrep/captures/rickroll-skipped.png)
 
-Les tests de l'IA tuent 65 mutants de plus, presque tous dans les méthodes `get*` (`getIntBE` et
-`getIntLE` 15 chacune, `getLongLE` 8, `getUShortBE` et `getUShortLE` 7). Ces méthodes n'étaient jamais exécutées
-avant. Comme elles reconstruisent un nombre à partir d'octets et que les tests comparent la valeur exacte, presque
-toutes les mutations changent le résultat : un `<<` remplacé par `>>`, un `+` par `-` ou un `& 0xFF` par
-`| 0xFF` (38 mutants), un retour remplacé par 0 (17), un `i++` remplacé par `i--` qui fait lire le mauvais octet (7).
+![Étapes du run en échec](docs/semgrep/captures/rickroll-etapes.png)
 
-Il restait 89 mutants non couverts dans les méthodes `read*` sur flux, que l'IA n'a pas réussi à tester, et 14
-survivants. Parmi eux, 2 sont équivalents : le dernier `i++` de `getIntLE` et `getIntBE` devient `i--`, mais `i`
-ne sert plus après. Les autres demandaient des données que personne n'avait utilisées : `00 00 00 00`, un octet
-`0x00` dans `readUE7`, ou un flux trop court pour `readUIntBE`.
+![Résumé du run avec le rickroll](docs/semgrep/captures/rickroll-summary.png)
 
-### 5.2 Mutants tués par les tests générés (MediaType)
+![Retour au vert](docs/semgrep/captures/rickroll-retour-vert.png)
 
-Les tests de l'IA tuent 14 mutants de plus (+16 points), tous dans des méthodes que les tests
-d'origine n'appelaient pas :
+## 8. Utilisation de l'IA
 
-- les 5 mutants « retourne `null` » de `application`, `audio`, `image`, `text` et `video` : les tests vérifient le
-  type obtenu (par exemple `application/json`), donc un `null` fait échouer l'assertion ;
-- `getType`, `getSubtype` et `getBaseType` (4 mutants : retour remplacé par `""` ou `null`, `+` remplacé par `-`
-  dans le calcul du sous-type) : les tests de `application` comparent la valeur exacte de chaque partie ;
-- `equals` (2 mutants) : `testGetBaseType` compare deux `MediaType` égaux avec `assertEquals`, ce qui échoue si
-  `equals` retourne `false` ou si sa condition est inversée ;
-- `hasParameters` (2 mutants) : les tests vérifient `true` avec des paramètres et `false` sans paramètres ;
-- `hashCode` (1 mutant) : le test compare le `hashCode` à la valeur attendue, qui n'est pas 0.
-
-Il restait 17 mutants non couverts, surtout dans les méthodes que ChatUniTest a ignorées (`union`, `set`), et
-4 survivants : `equals` qui retourne toujours `true` (aucun test ne compare deux types différents), la condition
-de `getBaseType` (aucun test avec des paramètres), et deux mutants liés au cache de `parse` / `isSimpleName`.
-Ce sont justement des cas limites que l'IA avait essayés, mais avec un oracle faux, et qu'on avait dû retirer.
-
-## 6. Nos tests
-
-### 6.1 Tests manuels pour EndianUtils
-
-Fichier : [`EndianUtilsManualTest.java`](tika-core/src/test/java/org/apache/tika/io/EndianUtilsManualTest.java) (16 tests).
-
-| Test | Intention | Données | Oracle | Mutants visés |
-|---|---|---|---|---|
-| `testReadUIntLEAllZeros`, `…UIntBE…`, `…IntME…` | 4 octets nuls ne sont pas une erreur | `00 00 00 00`, seul cas où le « ou » des octets vaut 0 (tue `< 0` → `<= 0`) | 0, sans exception | `< 0` → `<= 0` (L92, L111, L168) |
-| `testReadUIntBEBufferUnderrun` | `readUIntBE` refuse un flux trop court | `FF FF FF` (avec `0xFF`, le mutant `\|` → `&` donne 255) | `BufferUnderrunException` (Javadoc) | 3e `\|` → `&` (L111) |
-| `testReadUE7ZeroAfterContinuation` | un `0x00` après une continuation est lu | `81 00` | (1 << 7) + 0 = 128 | `>= 0` → `> 0` (L235) |
-| `testReadUE7SingleZero` | 0 sur un seul octet | `00` | 0, sans `IOException` | `< 0` → `<= 0` (L246) |
-| `testReadUShortLEAndBE` | ordre des octets, valeur non signée | `FF 80` | LE 0x80FF = 33023, BE 0xFF80 = 65408 | calcul de `readUShortLE/BE` (non couverts avant) |
-| `testReadShortLEAndBENegative` | version signée | `FF 80` | -32513 et -128 (complément à deux) | `readShortLE/BE` (non couverts avant) |
-| `testReadIntLEAndBE` | ordre de 4 octets et signe | `01 02 03 84` (inversé pour BE) | 0x84030201 = -2080112127 | calcul de `readIntLE/BE` (non couverts avant) |
-| `testReadLongLEAndBE` | ordre de 8 octets | `01` à `07` puis `88` | 0x8807060504030201 | calcul de `readLongLE/BE` (non couverts avant) |
-| `testReadLongLEAndBEBit31` | le bit 31 n'est pas étendu en signe (le code caste exprès en `long`) | seul l'octet du bit 31 vaut `80` | 2147483648 | décalages de l'octet du bit 31 dans `readLong*` |
-| `testReadMethodsBufferUnderrun` | toutes les méthodes refusent un flux trop court | un octet de moins que nécessaire | `BufferUnderrunException` | dernier `\|` → `&` et négation de la condition de fin de flux |
-| `testReadMethodsAllZeros` | octets nuls pour les 6 autres méthodes `read*` | que des `00` | 0 | `< 0` → `<= 0` dans les 6 méthodes |
-| `testReadMethodsDetectMissingByteAtAnyPosition` | un octet manquant est détecté à n'importe quelle position | flux maison qui renvoie -1 au milieu puis encore des octets | `BufferUnderrunException` | les autres `\|` → `&` des conditions de fin de flux (22) |
-| `testUnsignedConversionsWithNegativeBytes` | octets négatifs | `0xFF` | 255 (et 4294967295 pour 4 octets) | `getUByte`, `getUIntLE(byte[])` (non couverts avant) |
-| `testIOExceptionIsPropagated` | une erreur du flux remonte à l'appelant | flux qui lance toujours `IOException` | `IOException` | aucun en particulier (vérifie la propagation de l'exception) |
-
-Pour `testReadMethodsDetectMissingByteAtAnyPosition`, on pensait au départ que les mutants `|` → `&` dans `(ch1 | ch2 | ch3 | ch4) < 0`
-étaient équivalents, parce qu'avec un `ByteArrayInputStream`, après -1 on a toujours -1. Avec un flux écrit à la
-main, on a pu les tuer. Au premier passage avec 14 tests on était à 85 % ; ce test et `testReadMethodsAllZeros` nous ont amenés à 99 %. Les 2 mutants restants sont les mutants équivalents `i++` → `i--`.
-
-### 6.2 Tests manuels pour MediaType
-
-Fichier : [`MediaTypeManualTest.java`](tika-core/src/test/java/org/apache/tika/mime/MediaTypeManualTest.java) (14 tests).
-Analyse complète dans le [rapport `MediaType`](docs/rapport-tache2-mediatype.md#6-tests-ajoutés-manuellement).
-
-| Test | Intention | Données | Oracle | Mutants visés |
-|---|---|---|---|---|
-| `compareToOrdersBySubtype` | ordre de `compareTo` | `text/html` vs `text/plain` (seul le sous-type change) | signe seulement (contrat de `Comparable`) | L429 |
-| `equalsIsFalseForDifferentMediaTypes` | types différents | même type, sous-types différents | `false` | L418 |
-| `equalsIsFalseForNonMediaType` | autre classe et `null` | `"text/plain"` (String) et `null` | `false` (contrat de `equals`) | L420 |
-| `getBaseTypeRemovesParameters` | retire les paramètres | `text/plain; charset=UTF-8` | `text/plain` (Javadoc) | L367, L370 |
-| `parseReturnsCachedInstanceForSimpleTypes` | cache des types simples | même type analysé deux fois | même objet (`assertSame`) | L260, L293 |
-| `parseRejectsEmptyTypeOrSubtype` | type ou sous-type vide | `"text/"`, `"/plain"` | `null` (RFC 2045) | L293 |
-| `parseHandlesCharsetFirst` | format « charset d'abord » (TIKA-350) | `"charset=UTF-8; text/plain"` | `text/plain; charset=UTF-8` | L277, L278 |
-| `setOfStringsSkipsInvalidTypes` | `set(String...)` ignore l'invalide | 2 types valides + `"pas-un-type"` (pas de `/`) | ensemble de taille 2 | L230, L234 |
-| `setOfMediaTypesSkipsNull` | `set(MediaType...)` ignore `null` | 2 constantes + `null` | ensemble de taille 2 | L211, L215 |
-| `addParameterToTypeWithoutParameters` | ajout d'un paramètre | `TEXT_PLAIN` + `charset` | Javadoc du constructeur | L350 |
-| `addNoParameterKeepsBaseParameters` | `Map` vide | type avec `charset` + `Map` vide | paramètres inchangés | L349, L352 |
-| `addParameterMergesWithBaseParameters` | fusion des paramètres | `charset` + `format=flowed` | les deux, triés | L351, L355-357 |
-| `parseCachesNamesWithEveryAllowedCharacter` | tous les caractères permis | `application/x-0az9+._` + UUID (les bornes et symboles de `isSimpleName`, avec un nom jamais vu) | même objet | L288, L289 |
-| `parseExtractsParameterInsteadOfTreatingAsSimpleName` | un type avec paramètre n'est pas un nom simple | `text/plain; format=` + UUID | paramètre extrait | L288 |
-
-Certains mutants de `isSimpleName` ne changent pas la valeur retournée, seulement le fait que l'objet est mis en
-cache. Le seul moyen de les tuer est `assertSame`. Et comme `SIMPLE_TYPES` est statique et que PIT réutilise la
-JVM, une chaîne déjà mise en cache par un autre test faussait le résultat. On utilise donc un UUID pour avoir un
-nom jamais vu. C'est aussi ce qui explique l'écart entre 54 % et 59 % mentionné à la [section 1](#1-choix-des-classes).
-
-Résultat : 84/85. Il y a un mutant `TIMED_OUT` (boucle infinie dans `parseParameters`), que PIT compte comme
-détecté. Le dernier mutant est équivalent : à la ligne 257, PIT remplace `return null` par `return null`. À cause
-du bloc `synchronized`, il ne voit pas que la valeur est déjà `null`
-([explication détaillée](docs/rapport-tache2-mediatype.md#7-pourquoi-pas-8585--le-mutant-équivalent-de-la-ligne-257)).
-
-## 7. GitHub Action
-
-Le workflow [`.github/workflows/tache2-tests.yml`](.github/workflows/tache2-tests.yml) compile `tika-core`, lance les 130 tests (`EndianUtils*Test` et
-`MediaType*Test`) avec Checkstyle activé, puis PIT, et publie les rapports. Il passe sur `main`.
-
-| | Originaux | IA (corrigés) | Nos tests | Total |
-|---|---|---|---|---|
-| `EndianUtils` | 4 | 53 | 16 | 73 |
-| `MediaType` | 9 | 34 | 14 | 57 |
-
-On a retiré de notre fork les workflows d'origine de Tika (builds complets sur plusieurs JDK, Docker), qui
-prenaient plus d'une heure et n'avaient rien à voir avec la tâche.
-
-## 8. Conclusion et limites
-
-Les tests générés font monter la couverture et le score de mutation, mais leurs oracles ne sont pas fiables :
-28 % et 40 % des tests échouaient sur du code correct. ChatUniTest a aussi des angles morts (constructeurs,
-méthodes privées, lecture sur flux). Les tests qu'on a écrits à la main sont moins nombreux mais beaucoup plus
-efficaces : avec eux, on arrive à 99 % sur les deux classes, et les 3 mutants restants sont équivalents.
-
-Quelques limites : la génération n'est pas reproductible (une autre exécution donnerait d'autres tests, c'est
-pour ça qu'on a gardé les versions brutes et les journaux), on n'a pas corrigé les deux classes de la même façon,
-on a utilisé un petit modèle faute de GPU, et certaines vraies erreurs (comme oublier `& 0xFF`) ne sont pas
-générées par les mutateurs par défaut de PIT.
-
-## 9. Utilisation de l'IA
-
-Les tests `*_Test.java` ont été générés par ChatUniTest avec `qwen2.5-coder:7b`, comme demandé dans l'énoncé.
-On a aussi utilisé Claude (Anthropic) comme assistant pendant le travail : pour comprendre les outils et les
-erreurs, configurer Maven, PIT et GitHub Actions, analyser les mutants, proposer des tests et rédiger une première
-version de ce README. On a vérifié les résultats en lançant nous-mêmes les tests et PIT, et tous les chiffres
-viennent de nos exécutions.
+On a utilisé Claude (Anthropic) comme assistant pendant toute la tâche : pour comprendre Semgrep et son mode
+baseline, écrire les fichiers YAML du workflow et de l'action rickroll, choisir les vulnérabilités et écrire le
+code vulnérable, vérifier quelles règles Semgrep les détectent, analyser les rapports et rédiger ce README. On a
+fait nous-mêmes tous les commits, lancé le CI et vérifié les résultats : les chiffres et les captures viennent de
+nos propres runs GitHub Actions.
