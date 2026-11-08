@@ -3,6 +3,58 @@
 ┌──────────────────┐
 │ 11 Code Findings │
 └──────────────────┘
+                                                                        
+    tika-core/src/main/java/org/apache/tika/detect/XmlRootExtractor.java
+   ❯❯❱ java.lang.security.audit.xxe.documentbuilderfactory-disallow-doctype-decl-missing.documentbuilderfactory-
+       disallow-doctype-decl-missing                                                                            
+          ❰❰ Blocking ❱❱
+          DOCTYPE declarations are enabled for this DocumentBuilderFactory. This is vulnerable to XML external
+          entity attacks. Disable this by setting the feature "http://apache.org/xml/features/disallow-       
+          doctype-decl" to true. Alternatively, allow DOCTYPE declarations and only prohibit external entities
+          declarations. This can be done by setting the features "http://xml.org/sax/features/external-       
+          general-entities" and "http://xml.org/sax/features/external-parameter-entities" to false.           
+          Details: https://sg.run/PYBz                                                                        
+                                                                                                              
+           ▶▶┆ Autofix ▶ factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+              factory.newDocumentBuilder();                                                               
+           99┆ DocumentBuilder builder = factory.newDocumentBuilder();
+                                                                    
+    tika-core/src/main/java/org/apache/tika/digest/DigestHelper.java
+    ❯❱ java.lang.security.audit.crypto.use-of-md5.use-of-md5
+          ❰❰ Blocking ❱❱
+          Detected MD5 hash algorithm which is considered insecure. MD5 is not collision resistant and is
+          therefore not suitable as a cryptographic signature. Use HMAC instead.                         
+          Details: https://sg.run/ryJn                                                                   
+                                                                                                         
+           ▶▶┆ Autofix ▶ "SHA-512"
+          112┆ MessageDigest md = MessageDigest.getInstance("MD5");
+                                                                   
+    tika-core/src/main/java/org/apache/tika/io/TikaInputStream.java
+    ❯❱ java.lang.security.audit.crypto.unencrypted-socket.unencrypted-socket
+          ❰❰ Blocking ❱❱
+          Detected use of a Java socket that is not encrypted. As a result, the traffic could be read by an
+          attacker intercepting the network traffic. Use an SSLSocket created by 'SSLSocketFactory' or     
+          'SSLServerSocketFactory' instead.                                                                
+          Details: https://sg.run/W8zA                                                                     
+                                                                                                           
+          211┆ Socket socket = new Socket(host, port);
+                                                                  
+    tika-core/src/main/java/org/apache/tika/metadata/Database.java
+   ❯❯❱ generic.secrets.security.detected-username-and-password-in-uri.detected-username-and-password-in-uri
+          ❰❰ Blocking ❱❱
+          Username and password in URI detected
+          Details: https://sg.run/8yA4         
+                                               
+           36┆ String METADATA_DB_URL = "jdbc:postgresql://tikaadmin:Tika2026!@localhost:5432/tika";
+   
+   ❯❯❱ java.lang.security.audit.formatted-sql-string.formatted-sql-string
+          ❰❰ Blocking ❱❱
+          Detected a formatted string in a SQL statement. This could lead to SQL injection if variables in the
+          SQL statement are not properly sanitized. Use a prepared statements (java.sql.PreparedStatement)    
+          instead. You can obtain a PreparedStatement using 'connection.prepareStatement'.                    
+          Details: https://sg.run/OPXp                                                                        
+                                                                                                              
+           44┆ ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM " + tableName)) {
                                                                      
     tika-core/src/main/java/org/apache/tika/mime/MimeTypesReader.java
    ❯❯❱ java.lang.security.audit.xxe.saxparserfactory-disallow-doctype-decl-missing.saxparserfactory-disallow-doctype-
@@ -21,6 +73,34 @@
            ▶▶┆ Autofix ▶ factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
               factory.newSAXParser();                                                                     
           223┆ return factory.newSAXParser();
+                                                                    
+    tika-core/src/main/java/org/apache/tika/parser/CryptoParser.java
+    ❯❱ java.lang.security.audit.crypto.ecb-cipher.ecb-cipher
+          ❰❰ Blocking ❱❱
+          Cipher in ECB mode is detected. ECB mode produces the same output for the same input each time which
+          allows an attacker to intercept and replay the data. Further, ECB mode does not provide any         
+          integrity checking. See https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY.                  
+          Details: https://sg.run/Ro9K                                                                        
+                                                                                                              
+          115┆ Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+   
+    ❯❱ java.lang.security.audit.crypto.des-is-deprecated.des-is-deprecated
+          ❰❰ Blocking ❱❱
+          DES is considered deprecated. AES is the recommended cipher. Upgrade to use AES. See              
+          https://www.nist.gov/news-events/news/2005/06/nist-withdraws-outdated-data-encryption-standard for
+          more information.                                                                                 
+          Details: https://sg.run/5Q73                                                                      
+                                                                                                            
+           ▶▶┆ Autofix ▶ "AES/GCM/NoPadding"
+          115┆ Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+   
+    ❯❱ java.lang.security.audit.crypto.weak-rsa.use-of-weak-rsa-key
+          ❰❰ Blocking ❱❱
+          RSA keys should be at least 2048 bits based on NIST recommendation.
+          Details: https://sg.run/4x6x                                       
+                                                                             
+          124┆ KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+          125┆ generator.initialize(512);
                                                                      
     tika-core/src/main/java/org/apache/tika/parser/NetworkParser.java
     ❯❱ java.lang.security.audit.crypto.unencrypted-socket.unencrypted-socket
@@ -31,88 +111,6 @@
           Details: https://sg.run/W8zA                                                                     
                                                                                                            
            68┆ try (Socket socket = new Socket(uri.getHost(), uri.getPort())) {
-                                                                        
-    tika-core/src/main/java/org/apache/tika/tache3/ChiffrementCache.java
-    ❯❱ java.lang.security.audit.crypto.ecb-cipher.ecb-cipher
-          ❰❰ Blocking ❱❱
-          Cipher in ECB mode is detected. ECB mode produces the same output for the same input each time which
-          allows an attacker to intercept and replay the data. Further, ECB mode does not provide any         
-          integrity checking. See https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY.                  
-          Details: https://sg.run/Ro9K                                                                        
-                                                                                                              
-           26┆ Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
-   
-    ❯❱ java.lang.security.audit.crypto.des-is-deprecated.des-is-deprecated
-          ❰❰ Blocking ❱❱
-          DES is considered deprecated. AES is the recommended cipher. Upgrade to use AES. See              
-          https://www.nist.gov/news-events/news/2005/06/nist-withdraws-outdated-data-encryption-standard for
-          more information.                                                                                 
-          Details: https://sg.run/5Q73                                                                      
-                                                                                                            
-           ▶▶┆ Autofix ▶ "AES/GCM/NoPadding"
-           26┆ Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
-                                                                   
-    tika-core/src/main/java/org/apache/tika/tache3/ConnexionBd.java
-   ❯❯❱ generic.secrets.security.detected-username-and-password-in-uri.detected-username-and-password-in-uri
-          ❰❰ Blocking ❱❱
-          Username and password in URI detected
-          Details: https://sg.run/8yA4         
-                                               
-           27┆ private static final String URL =                           
-               "jdbc:postgresql://tikaadmin:Tika2026!@localhost:5432/tika";
-   
-   ❯❯❱ java.lang.security.audit.formatted-sql-string.formatted-sql-string
-          ❰❰ Blocking ❱❱
-          Detected a formatted string in a SQL statement. This could lead to SQL injection if variables in the
-          SQL statement are not properly sanitized. Use a prepared statements (java.sql.PreparedStatement)    
-          instead. You can obtain a PreparedStatement using 'connection.prepareStatement'.                    
-          Details: https://sg.run/OPXp                                                                        
-                                                                                                              
-           35┆ return statement.executeQuery("SELECT * FROM documents WHERE nom = '" + nom + "'");
-                                                                         
-    tika-core/src/main/java/org/apache/tika/tache3/EmpreinteDocument.java
-    ❯❱ java.lang.security.audit.crypto.use-of-md5.use-of-md5
-          ❰❰ Blocking ❱❱
-          Detected MD5 hash algorithm which is considered insecure. MD5 is not collision resistant and is
-          therefore not suitable as a cryptographic signature. Use HMAC instead.                         
-          Details: https://sg.run/ryJn                                                                   
-                                                                                                         
-           ▶▶┆ Autofix ▶ "SHA-512"
-           26┆ MessageDigest md = MessageDigest.getInstance("MD5");
-                                                                     
-    tika-core/src/main/java/org/apache/tika/tache3/EnvoiResultat.java
-    ❯❱ java.lang.security.audit.crypto.unencrypted-socket.unencrypted-socket
-          ❰❰ Blocking ❱❱
-          Detected use of a Java socket that is not encrypted. As a result, the traffic could be read by an
-          attacker intercepting the network traffic. Use an SSLSocket created by 'SSLSocketFactory' or     
-          'SSLServerSocketFactory' instead.                                                                
-          Details: https://sg.run/W8zA                                                                     
-                                                                                                           
-           26┆ try (Socket socket = new Socket(hote, port)) {
-                                                                      
-    tika-core/src/main/java/org/apache/tika/tache3/GenerateurCles.java
-    ❯❱ java.lang.security.audit.crypto.weak-rsa.use-of-weak-rsa-key
-          ❰❰ Blocking ❱❱
-          RSA keys should be at least 2048 bits based on NIST recommendation.
-          Details: https://sg.run/4x6x                                       
-                                                                             
-           26┆ KeyPairGenerator generateur = KeyPairGenerator.getInstance("RSA");
-           27┆ generateur.initialize(512);
-                                                                        
-    tika-core/src/main/java/org/apache/tika/tache3/LecteurConfigXml.java
-   ❯❯❱ java.lang.security.audit.xxe.documentbuilderfactory-disallow-doctype-decl-missing.documentbuilderfactory-
-       disallow-doctype-decl-missing                                                                            
-          ❰❰ Blocking ❱❱
-          DOCTYPE declarations are enabled for this DocumentBuilderFactory. This is vulnerable to XML external
-          entity attacks. Disable this by setting the feature "http://apache.org/xml/features/disallow-       
-          doctype-decl" to true. Alternatively, allow DOCTYPE declarations and only prohibit external entities
-          declarations. This can be done by setting the features "http://xml.org/sax/features/external-       
-          general-entities" and "http://xml.org/sax/features/external-parameter-entities" to false.           
-          Details: https://sg.run/PYBz                                                                        
-                                                                                                              
-           ▶▶┆ Autofix ▶ factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-              factory.newDocumentBuilder();                                                               
-           33┆ DocumentBuilder builder = factory.newDocumentBuilder();
                                                                      
     tika-core/src/main/java/org/apache/tika/utils/XMLReaderUtils.java
     ❯❱ java.lang.security.xmlinputfactory-possible-xxe.xmlinputfactory-possible-xxe
