@@ -1,0 +1,17 @@
+name: Rickroll
+description: Affiche un rickroll dans le resume du run quand les tests echouent
+
+runs:
+  using: composite
+  steps:
+    - name: Rickroll
+      shell: bash
+      run: |
+        echo "::error title=Tests en echec::Les tests ont echoue... ouvre le resume du run pour voir les details."
+        {
+          echo "## Les tests ont échoué"
+          echo ""
+          echo "Clique sur l'image pour voir le détail de l'erreur :"
+          echo ""
+          echo "[![Details de l'erreur](https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)"
+        } >> "$GITHUB_STEP_SUMMARY"
