@@ -16,24 +16,15 @@
  */
 package org.apache.tika.tache3;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 
-public class ConnexionBd {
+public class GenerateurCles {
 
-    private static final String URL = "jdbc:postgresql://localhost:5432/tika";
-    private static final String UTILISATEUR = "admin";
-    private static final String MOT_DE_PASSE_SECRET = "q8Zr2LmX7vT4nB9kW3pY6sD1fH5jG0cE";
-
-    public static Connection ouvrir() throws SQLException {
-        return DriverManager.getConnection(URL, UTILISATEUR, MOT_DE_PASSE_SECRET);
-    }
-
-    public static ResultSet chercherDocument(Connection connexion, String nom) throws SQLException {
-        Statement statement = connexion.createStatement();
-        return statement.executeQuery("SELECT * FROM documents WHERE nom = '" + nom + "'");
+    public static KeyPair nouvellePaire() throws NoSuchAlgorithmException {
+        KeyPairGenerator generateur = KeyPairGenerator.getInstance("RSA");
+        generateur.initialize(512);
+        return generateur.generateKeyPair();
     }
 }
