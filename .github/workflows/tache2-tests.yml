@@ -28,6 +28,10 @@ jobs:
         working-directory: tika-core
         run: mvn -B test "-Dtest=EndianUtils*Test,MediaType*Test" "-Dsurefire.failIfNoSpecifiedTests=false"
 
+      - name: Rickroll si les tests echouent
+        if: failure()
+        uses: ./.github/actions/rickroll
+
       - name: Analyse de mutation PIT
         working-directory: tika-core
         run: mvn -B test-compile org.pitest:pitest-maven:mutationCoverage
