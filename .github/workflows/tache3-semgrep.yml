@@ -1,0 +1,33 @@
+name: Tache 3 - Semgrep
+
+on:
+  push:
+    branches: [tache3]
+  workflow_dispatch:
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Analyse Semgrep de tika-core
+        run: >
+          semgrep scan
+          --config p/java
+          --config p/secrets
+          --json-output=semgrep-avant.json
+          --text-output=semgrep-avant.txt
+          tika-core/src/main/java
+
+      - name: Sauvegarder le rapport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-semgrep-avant
+          path: |
+            semgrep-avant.json
+            semgrep-avant.txt
