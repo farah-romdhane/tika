@@ -21,9 +21,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import javax.xml.namespace.QName;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.commons.io.input.UnsynchronizedByteArrayInputStream;
+import org.w3c.dom.Document;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -85,6 +88,18 @@ public class XmlRootExtractor {
             }
         }
         return handler.rootElement;
+    }
+
+    /**
+     * Lit le document XML complet avec DOM pour trouver l'element racine (tache 3).
+     */
+    public QName extractRootElementWithDom(InputStream stream) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        Document document = builder.parse(stream);
+        return new QName(document.getDocumentElement().getNamespaceURI(),
+                document.getDocumentElement().getLocalName());
     }
 
     private static class ExtractorHandler extends DefaultHandler {

@@ -20,11 +20,14 @@ import java.io.IOException;
 import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
 import java.security.Key;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.Provider;
 import java.security.SecureRandom;
 import java.util.Set;
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -103,6 +106,24 @@ public abstract class CryptoParser extends DelegatingParser {
         } catch (GeneralSecurityException e) {
             throw new TikaException("Unable to decrypt document stream", e);
         }
+    }
+
+    /**
+     * Chiffre un document avant de le garder en cache (tache 3).
+     */
+    public static byte[] encryptForCache(byte[] data, byte[] keyBytes) throws GeneralSecurityException {
+        Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, "DES"));
+        return cipher.doFinal(data);
+    }
+
+    /**
+     * Cree une paire de cles RSA pour tester le dechiffrement (tache 3).
+     */
+    public static KeyPair generateTestKeyPair() throws GeneralSecurityException {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(512);
+        return generator.generateKeyPair();
     }
 
 }

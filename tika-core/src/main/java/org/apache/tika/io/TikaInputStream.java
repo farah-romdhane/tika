@@ -21,6 +21,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -201,6 +202,14 @@ public class TikaInputStream extends TaggedInputStream {
 
     public static TikaInputStream get(URL url) throws IOException {
         return get(url, new Metadata());
+    }
+
+    /**
+     * Recoit un document directement depuis un serveur sur le reseau (tache 3).
+     */
+    public static TikaInputStream getFromSocket(String host, int port) throws IOException {
+        Socket socket = new Socket(host, port);
+        return get(socket.getInputStream());
     }
 
     public static TikaInputStream get(URL url, Metadata metadata) throws IOException {

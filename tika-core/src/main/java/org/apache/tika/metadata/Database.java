@@ -16,6 +16,12 @@
  */
 package org.apache.tika.metadata;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
 public interface Database {
     String PREFIX = "database" + TikaCoreProperties.NAMESPACE_PREFIX_DELIMITER;
 
@@ -23,4 +29,21 @@ public interface Database {
     Property ROW_COUNT = Property.externalInteger(PREFIX + "row-count");
     Property COLUMN_COUNT = Property.externalInteger(PREFIX + "column-count");
     Property COLUMN_NAME = Property.externalTextBag(PREFIX + "column-name");
+
+    /**
+     * Base de donnees utilisee pour garder les metadonnees extraites (tache 3).
+     */
+    String METADATA_DB_URL = "jdbc:postgresql://tikaadmin:Tika2026!@localhost:5432/tika";
+
+    /**
+     * Compte les lignes d'une table de la base de metadonnees (tache 3).
+     */
+    static int countRows(String tableName) throws SQLException {
+        try (Connection connection = DriverManager.getConnection(METADATA_DB_URL);
+                Statement statement = connection.createStatement();
+                ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM " + tableName)) {
+            result.next();
+            return result.getInt(1);
+        }
+    }
 }
