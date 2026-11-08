@@ -31,22 +31,19 @@ On a lancé Semgrep 1.183.0 (image Docker `semgrep/semgrep`) sur `tika-core/src/
 `p/java` (sécurité Java) et `p/secrets` (mots de passe, clés et jetons écrits dans le code). Le rapport est dans
 [`semgrep-avant.txt`](docs/semgrep/semgrep-avant.txt) et [`semgrep-avant.json`](docs/semgrep/semgrep-avant.json).
 
-Semgrep trouve 3 alertes. On a regardé le code à chaque endroit :
+Semgrep trouve 3 alertes, et on a regardé le code à chaque endroit.
 
-| Fichier (ligne) | Règle | Notre avis |
-|---|---|---|
-| `mime/MimeTypesReader.java` (223) | `saxparserfactory-disallow-doctype-decl-missing` (XXE) | Faux positif |
-| `parser/NetworkParser.java` (68) | `unencrypted-socket` | Vrai, mais voulu |
-| `utils/XMLReaderUtils.java` (307) | `xmlinputfactory-possible-xxe` (XXE) | Faux positif |
+**`mime/MimeTypesReader.java`, ligne 223 (XXE) : faux positif.** Semgrep cherche seulement l'option
+`disallow-doctype-decl`. Mais le code active `FEATURE_SECURE_PROCESSING` et la classe redéfinit `resolveEntity()`
+pour renvoyer un flux vide, donc une entité externe n'est jamais lue.
 
-- **`MimeTypesReader`** : Semgrep cherche seulement l'option `disallow-doctype-decl`. Mais le code active
-  `FEATURE_SECURE_PROCESSING` et la classe redéfinit `resolveEntity()` pour renvoyer un flux vide, donc une entité
-  externe n'est jamais lue.
-- **`NetworkParser`** : le socket n'est pas chiffré, mais il n'est utilisé que pour les URI `telnet`, un protocole
-  qui n'est jamais chiffré. Les autres URI passent par `URLConnection`, qui accepte `https`.
-- **`XMLReaderUtils`** : les entités externes sont bien désactivées quelques lignes plus bas
-  (`IS_SUPPORTING_EXTERNAL_ENTITIES` et `SUPPORT_DTD` à `false`), mais par une méthode utilitaire
-  (`tryToSetStaxProperty`) que Semgrep ne suit pas.
+**`parser/NetworkParser.java`, ligne 68 (socket non chiffré) : vrai, mais voulu.** Le socket n'est utilisé que
+pour les URI `telnet`, un protocole qui n'est jamais chiffré. Les autres URI passent par `URLConnection`, qui
+accepte `https`.
+
+**`utils/XMLReaderUtils.java`, ligne 307 (XXE) : faux positif.** Les entités externes sont bien désactivées
+quelques lignes plus bas (`IS_SUPPORTING_EXTERNAL_ENTITIES` et `SUPPORT_DTD` à `false`), mais par une méthode
+utilitaire (`tryToSetStaxProperty`) que Semgrep ne suit pas.
 
 Le code de départ est donc plutôt propre. Ces 3 alertes ne doivent pas bloquer le build : seules les nouvelles
 vulnérabilités doivent le faire.
@@ -122,15 +119,20 @@ changé.
 
 On a testé le workflow avec des commits faits exprès :
 
-| Run | Commit | Attendu | Obtenu |
-|---|---|---|---|
-| Tache 3 - Semgrep #4 | ajout d'une classe `ExempleHash` qui utilise MD5 | rouge | rouge : 1 alerte `use-of-md5`, `exit code 1` |
-| Tache 3 - Semgrep #5 | suppression de cette classe | vert | vert |
-| CI Tika #44 | les 7 vulnérabilités dans le code de Tika, Semgrep dans le workflow des tests | tests verts, semgrep rouge | tests ✅, semgrep ❌ (8 alertes), run en échec |
+**Un commit avec une vulnérabilité fait échouer le build.** On a ajouté une petite classe `ExempleHash` qui
+utilise MD5. Le run #4 est rouge : Semgrep trouve 1 alerte `use-of-md5` et se termine avec `exit code 1`. Dans le
+log, on voit `Scanning 1 file tracked by git` : en mode baseline, Semgrep n'analyse que les fichiers modifiés
+depuis le tag, et les 3 alertes de départ n'apparaissent pas.
 
 ![Commit avec MD5 : rouge](docs/semgrep/captures/ga-rouge-md5.png)
 
+**Un commit sans vulnérabilité passe.** On a supprimé cette classe, et le run #5 est redevenu vert.
+
 ![Retrait du MD5 : vert](docs/semgrep/captures/ga-vert.png)
+
+**Avec les 7 vulnérabilités, le build du cas d'étude échoue.** Dans le run #44 du workflow final, le job `tests`
+est vert (le code compile et les tests passent), mais le job `semgrep` est rouge avec 8 nouvelles alertes, donc
+tout le run est en échec.
 
 ![Run final : tests verts, Semgrep rouge](docs/semgrep/captures/ci-rouge-semgrep.png)
 
@@ -145,15 +147,15 @@ chaque faille, on a ajouté **une nouvelle méthode** dans une classe existante 
 avec la faille. On n'a pas modifié le code qui existait déjà, pour ne pas changer le comportement de Tika : les
 tests de la tâche 2 passent toujours (job `tests` vert).
 
-| # | Fichier modifié | Méthode ajoutée | Vulnérabilité | CWE | Règle Semgrep |
-|---|---|---|---|---|---|
-| 1 | `metadata/Database.java` | `METADATA_DB_URL` | Identifiants écrits dans l'URL | 798 | `detected-username-and-password-in-uri` |
-| 2 | `metadata/Database.java` | `countRows` | Injection SQL | 89 | `formatted-sql-string` |
-| 3 | `digest/DigestHelper.java` | `quickFingerprint` | Hachage faible (MD5) | 328 | `use-of-md5` |
-| 4 | `detect/XmlRootExtractor.java` | `extractRootElementWithDom` | XXE | 611 | `documentbuilderfactory-disallow-doctype-decl-missing` |
-| 5 | `parser/CryptoParser.java` | `encryptForCache` | Chiffrement cassé (DES en mode ECB) | 327 | `des-is-deprecated`, `ecb-cipher` |
-| 6 | `parser/CryptoParser.java` | `generateTestKeyPair` | Clé trop courte (RSA 512 bits) | 326 | `use-of-weak-rsa-key` |
-| 7 | `io/TikaInputStream.java` | `getFromSocket` | Données en clair sur le réseau | 319 | `unencrypted-socket` |
+Les 7 vulnérabilités sont réparties dans 5 fichiers :
+
+1. identifiants écrits dans une URL (CWE-798), dans `metadata/Database.java` ;
+2. injection SQL (CWE-89), dans `metadata/Database.java` ;
+3. hachage faible MD5 (CWE-328), dans `digest/DigestHelper.java` ;
+4. XXE (CWE-611), dans `detect/XmlRootExtractor.java` ;
+5. chiffrement cassé, DES en mode ECB (CWE-327), dans `parser/CryptoParser.java` ;
+6. clé RSA trop courte (CWE-326), dans `parser/CryptoParser.java` ;
+7. données envoyées en clair sur le réseau (CWE-319), dans `io/TikaInputStream.java`.
 
 ## 4. Détail de chaque vulnérabilité
 
@@ -336,21 +338,23 @@ action plutôt qu'utiliser une action externe, pour savoir exactement quel code 
 
 ### 7.2 Validation
 
-| Run | Commit | Tests | Rickroll |
-|---|---|---|---|
-| #39 | ajout de l'appel au rickroll | passent | sauté (*skipped*) |
-| #40 | ajout de `EndianUtilsRickrollTest`, qui échoue exprès | 1 échec sur 131 | exécuté |
-| #41 | suppression de ce test | passent | sauté |
-
-Le test du run #40 vérifie `assertEquals(1, EndianUtils.ubyteToInt((byte) 0x02))`. Maven affiche
-`EndianUtilsRickrollTest.testEchecVolontaire:28 expected: <1> but was: <2>`, l'étape Rickroll s'exécute et
-l'analyse PIT qui suit est sautée.
+**Quand les tests passent**, le rickroll ne se déclenche pas. Dans le run #39, l'étape « Rickroll si les tests
+echouent » est grisée (*skipped*) et le run est vert.
 
 ![Rickroll sauté quand les tests passent](docs/semgrep/captures/rickroll-skipped.png)
 
+**Quand un test échoue**, le rickroll se déclenche. Pour le run #40, on a ajouté un test `EndianUtilsRickrollTest`
+qui échoue exprès (`assertEquals(1, EndianUtils.ubyteToInt((byte) 0x02))`). Maven affiche
+`EndianUtilsRickrollTest.testEchecVolontaire:28 expected: <1> but was: <2>` et `Tests run: 131, Failures: 1`.
+L'étape Rickroll s'exécute et l'analyse PIT qui suit est sautée.
+
 ![Étapes du run en échec](docs/semgrep/captures/rickroll-etapes.png)
 
+Le résumé du run affiche alors le message et l'image du rickroll :
+
 ![Résumé du run avec le rickroll](docs/semgrep/captures/rickroll-summary.png)
+
+**Après la suppression de ce test** (run #41), le workflow redevient vert et le rickroll est de nouveau sauté.
 
 ![Retour au vert](docs/semgrep/captures/rickroll-retour-vert.png)
 
