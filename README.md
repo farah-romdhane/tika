@@ -365,3 +365,4 @@ baseline, écrire les fichiers YAML du workflow et de l'action rickroll, choisir
 code vulnérable, vérifier quelles règles Semgrep les détectent, analyser les rapports et rédiger ce README. On a
 fait nous-mêmes tous les commits, lancé le CI et vérifié les résultats : les chiffres et les captures viennent de
 nos propres runs GitHub Actions.
+<!-- validation -->
