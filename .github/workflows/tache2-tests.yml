@@ -25,11 +25,12 @@ jobs:
         run: mvn -B -pl tika-core -am install -Pfast
 
       - name: Executer les tests (originaux + generes + manuels)
+        id: tests
         working-directory: tika-core
         run: mvn -B test "-Dtest=EndianUtils*Test,MediaType*Test" "-Dsurefire.failIfNoSpecifiedTests=false"
 
       - name: Rickroll si les tests echouent
-        if: failure()
+        if: failure() && steps.tests.outcome == 'failure'
         uses: ./.github/actions/rickroll
 
       - name: Analyse de mutation PIT
@@ -49,7 +50,7 @@ jobs:
   semgrep:
     runs-on: ubuntu-latest
     container:
-      image: semgrep/semgrep
+      image: semgrep/semgrep:1.183.0
 
     steps:
       - name: Checkout (avec tout l'historique)
@@ -60,12 +61,32 @@ jobs:
       - name: Autoriser git dans le conteneur
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
+      - name: Choisir le commit de reference
+        id: base
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            BASE="$PR_BASE"
+          else
+            BASE="$PUSH_BEFORE"
+          fi
+          # Premier push d'une branche, force-push ou lancement manuel :
+          # pas de commit precedent utilisable, on compare au tag de depart.
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE="$(git rev-parse semgrep-base)"
+          fi
+          echo "Commit de reference : $BASE"
+          echo "sha=$BASE" >> "$GITHUB_OUTPUT"
+
       - name: Semgrep - nouvelles vulnerabilites seulement
         run: >
           semgrep scan
           --config p/java
           --config p/secrets
-          --baseline-commit "$(git rev-parse semgrep-base)"
+          --baseline-commit "${{ steps.base.outputs.sha }}"
           --error
           --text-output=semgrep-nouvelles.txt
           tika-core/src/main/java
