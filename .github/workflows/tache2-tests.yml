@@ -86,6 +86,8 @@ jobs:
           semgrep scan
           --config p/java
           --config p/secrets
+          --config p/security-audit
+          --config r/java.lang.security.audit.command-injection-process-builder.command-injection-process-builder
           --baseline-commit "${{ steps.base.outputs.sha }}"
           --error
           --text-output=semgrep-nouvelles.txt
@@ -97,6 +99,8 @@ jobs:
           semgrep scan
           --config p/java
           --config p/secrets
+          --config p/security-audit
+          --config r/java.lang.security.audit.command-injection-process-builder.command-injection-process-builder
           --json-output=semgrep-complet.json
           --text-output=semgrep-complet.txt
           tika-core/src/main/java
