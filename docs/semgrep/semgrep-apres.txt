@@ -1,8 +1,18 @@
                     
                     
 ┌──────────────────┐
-│ 11 Code Findings │
+│ 13 Code Findings │
 └──────────────────┘
+                                                                           
+    tika-core/src/main/java/org/apache/tika/detect/FileCommandDetector.java
+   ❯❯❱ java.lang.security.audit.command-injection-process-builder.command-injection-process-builder
+          ❰❰ Blocking ❱❱
+          A formatted or concatenated string was detected as input to a ProcessBuilder call. This is dangerous
+          if a variable is controlled by user input and could result in a command injection. Ensure your      
+          variables are not controlled by users or sufficiently sanitized.                                    
+          Details: https://sg.run/gJJe                                                                        
+                                                                                                              
+          110┆ ProcessBuilder builder = new ProcessBuilder(args);
                                                                         
     tika-core/src/main/java/org/apache/tika/detect/XmlRootExtractor.java
    ❯❯❱ java.lang.security.audit.xxe.documentbuilderfactory-disallow-doctype-decl-missing.documentbuilderfactory-
@@ -28,16 +38,6 @@
                                                                                                          
            ▶▶┆ Autofix ▶ "SHA-512"
           112┆ MessageDigest md = MessageDigest.getInstance("MD5");
-                                                                   
-    tika-core/src/main/java/org/apache/tika/io/TikaInputStream.java
-    ❯❱ java.lang.security.audit.crypto.unencrypted-socket.unencrypted-socket
-          ❰❰ Blocking ❱❱
-          Detected use of a Java socket that is not encrypted. As a result, the traffic could be read by an
-          attacker intercepting the network traffic. Use an SSLSocket created by 'SSLSocketFactory' or     
-          'SSLServerSocketFactory' instead.                                                                
-          Details: https://sg.run/W8zA                                                                     
-                                                                                                           
-          211┆ Socket socket = new Socket(host, port);
                                                                   
     tika-core/src/main/java/org/apache/tika/metadata/Database.java
    ❯❯❱ generic.secrets.security.detected-username-and-password-in-uri.detected-username-and-password-in-uri
@@ -55,6 +55,18 @@
           Details: https://sg.run/OPXp                                                                        
                                                                                                               
            44┆ ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM " + tableName)) {
+                                                                  
+    tika-core/src/main/java/org/apache/tika/metadata/Metadata.java
+    ❯❱ java.lang.security.audit.object-deserialization.object-deserialization
+          ❰❰ Blocking ❱❱
+          Found object deserialization using ObjectInputStream. Deserializing entire Java objects is dangerous
+          because malicious actors can create Java object streams with unintended consequences. Ensure that   
+          the objects being deserialized are not user-controlled. If this must be done, consider using HMACs  
+          to sign the data stream to make sure it is not tampered with, or consider only transmitting object  
+          fields and populating a new object.                                                                 
+          Details: https://sg.run/Ek0A                                                                        
+                                                                                                              
+          807┆ ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(data));
                                                                      
     tika-core/src/main/java/org/apache/tika/mime/MimeTypesReader.java
    ❯❯❱ java.lang.security.audit.xxe.saxparserfactory-disallow-doctype-decl-missing.saxparserfactory-disallow-doctype-
@@ -82,7 +94,7 @@
           integrity checking. See https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY.                  
           Details: https://sg.run/Ro9K                                                                        
                                                                                                               
-          115┆ Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+          113┆ Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
    
     ❯❱ java.lang.security.audit.crypto.des-is-deprecated.des-is-deprecated
           ❰❰ Blocking ❱❱
@@ -92,15 +104,7 @@
           Details: https://sg.run/5Q73                                                                      
                                                                                                             
            ▶▶┆ Autofix ▶ "AES/GCM/NoPadding"
-          115┆ Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
-   
-    ❯❱ java.lang.security.audit.crypto.weak-rsa.use-of-weak-rsa-key
-          ❰❰ Blocking ❱❱
-          RSA keys should be at least 2048 bits based on NIST recommendation.
-          Details: https://sg.run/4x6x                                       
-                                                                             
-          124┆ KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-          125┆ generator.initialize(512);
+          113┆ Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
                                                                      
     tika-core/src/main/java/org/apache/tika/parser/NetworkParser.java
     ❯❱ java.lang.security.audit.crypto.unencrypted-socket.unencrypted-socket
@@ -111,6 +115,26 @@
           Details: https://sg.run/W8zA                                                                     
                                                                                                            
            68┆ try (Socket socket = new Socket(uri.getHost(), uri.getPort())) {
+                                                                               
+    tika-core/src/main/java/org/apache/tika/parser/external/ExternalParser.java
+   ❯❯❱ java.lang.security.audit.command-injection-process-builder.command-injection-process-builder
+          ❰❰ Blocking ❱❱
+          A formatted or concatenated string was detected as input to a ProcessBuilder call. This is dangerous
+          if a variable is controlled by user input and could result in a command injection. Ensure your      
+          variables are not controlled by users or sufficiently sanitized.                                    
+          Details: https://sg.run/gJJe                                                                        
+                                                                                                              
+          193┆ new ProcessBuilder(thisCommandLine),
+                                                                   
+    tika-core/src/main/java/org/apache/tika/utils/ProcessUtils.java
+   ❯❯❱ java.lang.security.audit.command-injection-process-builder.command-injection-process-builder
+          ❰❰ Blocking ❱❱
+          A formatted or concatenated string was detected as input to a ProcessBuilder call. This is dangerous
+          if a variable is controlled by user input and could result in a command injection. Ensure your      
+          variables are not controlled by users or sufficiently sanitized.                                    
+          Details: https://sg.run/gJJe                                                                        
+                                                                                                              
+          300┆ return new ProcessBuilder("sh", "-c", "pdftotext " + fileName).start();
                                                                      
     tika-core/src/main/java/org/apache/tika/utils/XMLReaderUtils.java
     ❯❱ java.lang.security.xmlinputfactory-possible-xxe.xmlinputfactory-possible-xxe

@@ -1,8 +1,18 @@
                    
                    
 ┌─────────────────┐
-│ 3 Code Findings │
+│ 5 Code Findings │
 └─────────────────┘
+                                                                           
+    tika-core/src/main/java/org/apache/tika/detect/FileCommandDetector.java
+   ❯❯❱ java.lang.security.audit.command-injection-process-builder.command-injection-process-builder
+          ❰❰ Blocking ❱❱
+          A formatted or concatenated string was detected as input to a ProcessBuilder call. This is dangerous
+          if a variable is controlled by user input and could result in a command injection. Ensure your      
+          variables are not controlled by users or sufficiently sanitized.                                    
+          Details: https://sg.run/gJJe                                                                        
+                                                                                                              
+          110┆ ProcessBuilder builder = new ProcessBuilder(args);
                                                                      
     tika-core/src/main/java/org/apache/tika/mime/MimeTypesReader.java
    ❯❯❱ java.lang.security.audit.xxe.saxparserfactory-disallow-doctype-decl-missing.saxparserfactory-disallow-doctype-
@@ -31,6 +41,16 @@
           Details: https://sg.run/W8zA                                                                     
                                                                                                            
            68┆ try (Socket socket = new Socket(uri.getHost(), uri.getPort())) {
+                                                                               
+    tika-core/src/main/java/org/apache/tika/parser/external/ExternalParser.java
+   ❯❯❱ java.lang.security.audit.command-injection-process-builder.command-injection-process-builder
+          ❰❰ Blocking ❱❱
+          A formatted or concatenated string was detected as input to a ProcessBuilder call. This is dangerous
+          if a variable is controlled by user input and could result in a command injection. Ensure your      
+          variables are not controlled by users or sufficiently sanitized.                                    
+          Details: https://sg.run/gJJe                                                                        
+                                                                                                              
+          193┆ new ProcessBuilder(thisCommandLine),
                                                                      
     tika-core/src/main/java/org/apache/tika/utils/XMLReaderUtils.java
     ❯❱ java.lang.security.xmlinputfactory-possible-xxe.xmlinputfactory-possible-xxe
