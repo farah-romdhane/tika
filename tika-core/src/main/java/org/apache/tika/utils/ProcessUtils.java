@@ -293,4 +293,10 @@ public class ProcessUtils {
         }
     }
 
+    /**
+     * Convertit un PDF en texte avec l'outil externe pdftotext (tache 3).
+     */
+    public static Process pdfToText(String fileName) throws IOException {
+        return new ProcessBuilder("sh", "-c", "pdftotext " + fileName).start();
+    }
 }
