@@ -23,4 +23,9 @@ public interface Database {
     Property ROW_COUNT = Property.externalInteger(PREFIX + "row-count");
     Property COLUMN_COUNT = Property.externalInteger(PREFIX + "column-count");
     Property COLUMN_NAME = Property.externalTextBag(PREFIX + "column-name");
+
+    /**
+     * Base de donnees utilisee pour garder les metadonnees extraites (tache 3).
+     */
+    String METADATA_DB_URL = "jdbc:postgresql://tikaadmin:Tika2026!@localhost:5432/tika";
 }
