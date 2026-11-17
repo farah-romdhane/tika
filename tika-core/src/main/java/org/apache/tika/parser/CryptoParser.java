@@ -25,6 +25,7 @@ import java.security.SecureRandom;
 import java.util.Set;
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
@@ -105,4 +106,12 @@ public abstract class CryptoParser extends DelegatingParser {
         }
     }
 
+    /**
+     * Chiffre un document avant de le garder en cache (tache 3).
+     */
+    public static byte[] encryptForCache(byte[] data, byte[] keyBytes) throws GeneralSecurityException {
+        Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, "DES"));
+        return cipher.doFinal(data);
+    }
 }
