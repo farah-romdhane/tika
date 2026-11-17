@@ -18,6 +18,9 @@ package org.apache.tika.metadata;
 
 import static org.apache.tika.utils.DateUtils.formatDate;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.DateFormatSymbols;
@@ -795,5 +798,13 @@ public class Metadata
             }
         }
         return stringBuilder.toString();
+    }
+
+    /**
+     * Reconstruit des metadonnees a partir d'octets serialises (tache 3).
+     */
+    public static Metadata fromBytes(byte[] data) throws IOException, ClassNotFoundException {
+        ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(data));
+        return (Metadata) in.readObject();
     }
 }
