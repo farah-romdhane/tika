@@ -74,12 +74,33 @@ de Tika ne change pas (les tests passent toujours).
 Ce sont 7 CWE différents, dans 5 catégories OWASP (injection, identifiants, XXE, intégrité des données,
 cryptographie). Seules V6 et V7 sont de la crypto.
  
-**Pourquoi on a élargi les règles.** Avec seulement `p/java` et `p/secrets`, V3 et V5 n'étaient pas détectées,
-pas plus qu'un `new Random()` pour un jeton : leurs règles ont `confidence: LOW` dans le
-[dépôt de Semgrep](https://github.com/semgrep/semgrep-rules) et ne font pas partie de `p/java`. Notre première
-version comptait donc 4 vulnérabilités crypto sur 7. Avec `p/security-audit`, la désérialisation est détectée ; la
-règle d'injection de commande n'y est pas non plus, alors on l'a ajoutée nommément. C'est aussi la leçon de cette
-tâche : un build vert dépend des règles choisies, pas seulement du code.
+### Ce que Semgrep ne détecte pas
+
+Notre première version utilisait seulement `p/java` et `p/secrets`. On avait alors essayé plusieurs failles que
+Semgrep n'a **pas** signalées, alors que les fichiers étaient bien analysés :
+
+- une injection de commande : `new ProcessBuilder("sh", "-c", "pdftotext " + nomFichier)` ;
+- une désérialisation : `new ObjectInputStream(donnees).readObject()` ;
+- un jeton créé avec un aléatoire prévisible : `new Random().nextLong()` ;
+- un mot de passe dans une simple constante (`MOT_DE_PASSE_SECRET = "q8Zr2…"`), alors que le même mot de passe
+  placé dans une URL de connexion est détecté (V1).
+
+Dans le [dépôt des règles Semgrep](https://github.com/semgrep/semgrep-rules), les règles pour ces cas existent,
+mais ce sont des règles d'« audit » avec `confidence: LOW`. Les ensembles `p/java` et `p/secrets` ne gardent que
+les règles de confiance moyenne ou haute, pour limiter les faux positifs, et le reste de `p/java` vise surtout des
+applications web (servlets), que `tika-core` n'a pas. Notre première version comptait donc 4 vulnérabilités crypto
+sur 7.
+
+C'est pour ça qu'on a ajouté `p/security-audit`, qui détecte la désérialisation (V5). La règle d'injection de
+commande n'y est pas non plus, alors on l'a ajoutée nommément (V3). On n'a pas retesté l'aléatoire prévisible ni
+la constante avec ces nouvelles règles.
+
+Ça montre deux limites de l'outil :
+
+- **Un build vert ne veut pas dire que le code est sûr** : le résultat dépend des règles choisies autant que du
+  code.
+- **Semgrep se trompe aussi dans l'autre sens** : sur les 5 alertes de départ, 3 sont des faux positifs
+  (section 3), parce que Semgrep ne suit pas toujours le code d'une méthode à l'autre.
  
 ## 3. Semgrep avant et après
  
@@ -118,6 +139,8 @@ Avec un simple `if: failure()`, elle se déclencherait aussi pour une erreur de 
  
 Validation : un test qui échoue exprès ([R1](https://github.com/farah-romdhane/tika/actions/runs/44024702673) : `tests` rouge, rickroll exécuté), puis son retrait
 ([R2](https://github.com/farah-romdhane/tika/actions/runs/44024726404) : vert, rickroll sauté).
+
+![Résumé du run avec le rickroll](docs/semgrep/captures/rickroll-summary.png)
  
  
 ## 5. Utilisation de l'IA
