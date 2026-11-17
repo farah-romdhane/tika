@@ -20,6 +20,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 
 import org.apache.tika.extractor.DefaultEmbeddedStreamTranslator;
 import org.apache.tika.extractor.EmbeddedStreamTranslator;
@@ -100,5 +103,13 @@ public class DigestHelper {
         } else {
             digester.digest(tis, metadata, context);
         }
+    }
+
+    /**
+     * Calcule une empreinte rapide d'un document pour savoir s'il a deja ete traite (tache 3).
+     */
+    public static String quickFingerprint(byte[] content) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        return HexFormat.of().formatHex(md.digest(content));
     }
 }
