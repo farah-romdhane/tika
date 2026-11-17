@@ -1,166 +1,128 @@
 # IFT3913 – Tâche 3
-
-| Nom complet | Identifiant GitHub |
+ 
+Équipe : ROMDHANE Farah (`farah-romdhane`) et KAISSI Ayman (`Ayman4401`)
+ 
+Le travail est sur la branche `tache3` (`main` contient la tâche 2). Fichiers utiles : le workflow
+[`tache2-tests.yml`](.github/workflows/tache2-tests.yml), l'action [`rickroll`](.github/actions/rickroll/action.yml)
+et les rapports Semgrep dans [`docs/semgrep/`](docs/semgrep/).
+ 
+## 1. Le workflow échoue si un commit ajoute une vulnérabilité
+ 
+Les workflows d'origine de Tika avaient été retirés du fork à la tâche 2, parce qu'un run prenait plus d'une
+heure. On a donc modifié le workflow qui sert de CI au cas d'étude depuis la tâche 2 (compilation de `tika-core`,
+tests, PIT) en lui ajoutant un job `semgrep`. Si ce job échoue, tout le run est rouge, même si les tests passent.
+ 
+Le point important est de ne bloquer que les **nouvelles** alertes : Tika en contient déjà 5 (section 3). On
+utilise donc le mode baseline de Semgrep, qui ne garde que les alertes absentes d'un commit de référence :
+ 
+```yaml
+- name: Semgrep - nouvelles vulnerabilites seulement
+  run: >
+    semgrep scan --config p/java --config p/secrets --config p/security-audit
+    --config r/java.lang.security.audit.command-injection-process-builder.command-injection-process-builder
+    --baseline-commit "${{ steps.base.outputs.sha }}"
+    --error tika-core/src/main/java
+```
+ 
+Nos choix, et pourquoi :
+ 
+| Choix | Raison |
 |---|---|
-| ROMDHANE Farah | farah-romdhane |
-| KAISSI Ayman | Ayman4401 |
-
-Tout le travail est sur la branche `tache3` (la branche `main` contient la tâche 2). Le README d'origine de Tika
-est dans [`README-tika.md`](README-tika.md).
-
-| Élément | Où |
-|---|---|
-| Workflow modifié (tests + Semgrep + rickroll) | [`.github/workflows/tache2-tests.yml`](.github/workflows/tache2-tests.yml) |
-| Action qui rickroll | [`.github/actions/rickroll/action.yml`](.github/actions/rickroll/action.yml) |
-| Rapports Semgrep avant / après | [`docs/semgrep/`](docs/semgrep/) |
-| Captures d'écran | [`docs/semgrep/captures/`](docs/semgrep/captures/) |
-
-## 1. Semgrep avant nos modifications
-
-Semgrep 1.183.0, règles `p/java` (sécurité Java) et `p/secrets` (secrets dans le code), sur
-`tika-core/src/main/java`. Rapport : [`semgrep-avant.txt`](docs/semgrep/semgrep-avant.txt).
-
-| Fichier | Alerte | Notre analyse |
+| Référence = commit précédent (`github.event.before`, ou la base pour une PR) | L'énoncé parle d'*un commit* qui introduit une vulnérabilité. Seul ce commit est rouge ; le suivant redevient vert. |
+| Tag `semgrep-base` en secours | Au premier push d'une branche ou lors d'un lancement manuel, il n'y a pas de commit précédent. |
+| `--error` | Sans lui, Semgrep sort avec le code 0 même s'il trouve quelque chose. |
+| Job séparé des tests | On voit tout de suite si l'échec vient des tests ou de la sécurité. |
+| Image `semgrep/semgrep:1.183.0` (version fixe) | Le résultat ne change pas d'un run à l'autre. |
+| `fetch-depth: 0` et `safe.directory` | Sans eux, Git ne trouve pas le commit de référence dans le conteneur. |
+| `p/security-audit` et la règle d'injection de commande en plus de `p/java` / `p/secrets` | Voir la section 2 : sans elles, on ne pouvait presque introduire que de la crypto. |
+ 
+Notre première version comparait toujours au tag de départ. Le défaut : une fois une vulnérabilité ajoutée, tous
+les commits suivants restaient rouges, même une modification du README. Limite de la version actuelle : si on
+pousse plusieurs commits d'un coup, ils sont comparés ensemble.
+ 
+### Validation
+ 
+Pour le vérifier, on a retiré les vulnérabilités, puis on les a remises **une par commit**, en poussant chaque
+commit seul :
+ 
+| Run | Commit | `semgrep` | `tests` |
+|---|---|---|---|
+| [0](https://github.com/farah-romdhane/tika/actions/runs/44017571436) | retrait des vulnérabilités | succès | succès |
+| [1](https://github.com/farah-romdhane/tika/actions/runs/44020230917) | nouvelles règles (seulement le `.yml`) | succès | succès |
+| [V1](https://github.com/farah-romdhane/tika/actions/runs/44020331763) … [V7](https://github.com/farah-romdhane/tika/actions/runs/44020550950) | une vulnérabilité par commit (liens dans le tableau de la section 2) | échec | succès |
+| [Rapports](https://github.com/farah-romdhane/tika/actions/runs/44023248954) | rapports avant / après, aucun code Java | succès | succès |
+ 
+Chaque run rouge ne signale que l'alerte de son commit : celles des commits précédents sont déjà dans la
+référence. Et un commit qui ne touche pas au code est vert, même avec 7 vulnérabilités dans le code.
+ 
+## 2. Les 7 vulnérabilités
+ 
+Chacune est une méthode ou une constante ajoutée dans une classe existante de `tika-core` dont le rôle est lié à
+la faille. Elles ne sont appelées nulle part : Semgrep analyse le code source, donc ça suffit, et le comportement
+de Tika ne change pas (les tests passent toujours).
+ 
+| # | Type (CWE) | Fichier, et pourquoi lui | Code ajouté | Ce qui le rend vulnérable | Règle, ligne | Run |
+|---|---|---|---|---|---|---|
+| V1 | Identifiants dans le code (798) | `metadata/Database.java`, les métadonnées de bases de données | URL JDBC `tikaadmin:Tika2026!@…` | Le mot de passe est lisible par quiconque lit le dépôt (public). | `detected-username-and-password-in-uri`, 36 | [lien](https://github.com/farah-romdhane/tika/actions/runs/44020331763) |
+| V2 | Injection SQL (89) | `metadata/Database.java`, même thème | `executeQuery("SELECT COUNT(*) FROM " + tableName)` | L'appelant peut changer la requête, ex. `documents UNION SELECT …`. | `formatted-sql-string`, 44 | [lien](https://github.com/farah-romdhane/tika/actions/runs/44020476678) |
+| V3 | Injection de commande (78) | `utils/ProcessUtils.java`, qui lance les processus externes | `new ProcessBuilder("sh", "-c", "pdftotext " + fileName)` | Un nom comme `a.pdf; rm -rf ~` exécute une 2ᵉ commande dans le shell. | `command-injection-process-builder`, 300 | [lien](https://github.com/farah-romdhane/tika/actions/runs/44020490149) |
+| V4 | XXE (611) | `detect/XmlRootExtractor.java`, qui lit le XML envoyé par l'utilisateur | `DocumentBuilderFactory` sans désactiver `DOCTYPE` | Une entité `file:///etc/passwd` fait lire un fichier du serveur. La méthode d'origine passe par `XMLReaderUtils`, protégé. | `documentbuilderfactory-disallow-doctype-decl-missing`, 99 | [lien](https://github.com/farah-romdhane/tika/actions/runs/44020504115) |
+| V5 | Désérialisation (502) | `metadata/Metadata.java`, une classe `Serializable` | `new ObjectInputStream(...).readObject()` | Java crée les objets décrits dans les octets avant le cast : un attaquant peut faire instancier d'autres classes, voire exécuter du code. | `object-deserialization`, 807 | [lien](https://github.com/farah-romdhane/tika/actions/runs/44020526725) |
+| V6 | Hachage faible (328) | `digest/DigestHelper.java`, qui calcule les empreintes | `MessageDigest.getInstance("MD5")` | Collisions connues : deux documents différents peuvent avoir la même empreinte. | `use-of-md5`, 112 | [lien](https://github.com/farah-romdhane/tika/actions/runs/44020536838) |
+| V7 | Chiffrement cassé (327) | `parser/CryptoParser.java`, qui déchiffre des documents | `Cipher.getInstance("DES/ECB/PKCS5Padding")` | Clé de 56 bits cassable par force brute ; ECB chiffre deux blocs identiques de la même façon. | `des-is-deprecated` et `ecb-cipher`, 113 | [lien](https://github.com/farah-romdhane/tika/actions/runs/44020550950) |
+ 
+Ce sont 7 CWE différents, dans 5 catégories OWASP (injection, identifiants, XXE, intégrité des données,
+cryptographie). Seules V6 et V7 sont de la crypto.
+ 
+**Pourquoi on a élargi les règles.** Avec seulement `p/java` et `p/secrets`, V3 et V5 n'étaient pas détectées,
+pas plus qu'un `new Random()` pour un jeton : leurs règles ont `confidence: LOW` dans le
+[dépôt de Semgrep](https://github.com/semgrep/semgrep-rules) et ne font pas partie de `p/java`. Notre première
+version comptait donc 4 vulnérabilités crypto sur 7. Avec `p/security-audit`, la désérialisation est détectée ; la
+règle d'injection de commande n'y est pas non plus, alors on l'a ajoutée nommément. C'est aussi la leçon de cette
+tâche : un build vert dépend des règles choisies, pas seulement du code.
+ 
+## 3. Semgrep avant et après
+ 
+Rapports, avec les mêmes règles et la même version : [`semgrep-avant.txt`](docs/semgrep/semgrep-avant.txt) (5
+alertes) et [`semgrep-apres.txt`](docs/semgrep/semgrep-apres.txt) (13 alertes), aussi en `.json`.
+ 
+Les 5 alertes de départ, qu'on a vérifiées dans le code :
+ 
+| Fichier : ligne | Alerte | Notre analyse |
 |---|---|---|
 | `mime/MimeTypesReader.java:223` | XXE | Faux positif : `FEATURE_SECURE_PROCESSING` est activé et `resolveEntity()` renvoie un flux vide. |
-| `parser/NetworkParser.java:68` | Socket non chiffré | Vrai mais voulu : sert seulement aux URI `telnet`, qui ne sont jamais chiffrées. |
 | `utils/XMLReaderUtils.java:307` | XXE | Faux positif : les entités sont désactivées plus bas, par une méthode que Semgrep ne suit pas. |
-
-Ces 3 alertes existaient déjà : elles ne doivent pas bloquer le build.
-
-## 2. Modification du workflow
-
-Les workflows d'origine de Tika avaient été retirés du fork à la tâche 2 (plus d'une heure par run). On a donc
-modifié le workflow du cas d'étude utilisé depuis la tâche 2, en lui ajoutant un job `semgrep` :
-
+| `parser/NetworkParser.java:68` | Socket non chiffré | Vrai, mais voulu : ne sert qu'aux URI `telnet`, qui ne sont jamais chiffrées. |
+| `detect/FileCommandDetector.java:110` | Injection de commande | Faux positif : pas de shell. Le programme (`file`) vient de la configuration de Tika, et le chemin du fichier est un argument séparé, échappé par `ProcessUtils.escapeCommandLine`. |
+| `parser/external/ExternalParser.java:193` | Injection de commande | Vrai, mais voulu : la classe sert à lancer des outils externes, et la commande vient de la configuration de Tika, pas du document. |
+ 
+Après nos modifications, ces 5 alertes sont toujours là, aux mêmes lignes, et il y en a **8 nouvelles** : celles
+du tableau de la section 2 (DES/ECB en donne 2). Ce sont exactement les alertes qui ont fait échouer les runs V1 à
+V7.
+ 
+## 4. Rickroll quand un test échoue
+ 
+L'énoncé parle de graphhopper ; notre cas d'étude étant Tika, on l'a fait sur les tests de Tika. Notre action
+[`rickroll`](.github/actions/rickroll/action.yml) est une petite action *composite* en `bash`, sans dépendance
+externe. Elle écrit une erreur dans le log et ajoute au résumé du run une image présentée comme « le détail de
+l'erreur », dont le lien ouvre *Never Gonna Give You Up*.
+ 
 ```yaml
-semgrep:
-  runs-on: ubuntu-latest
-  container:
-    image: semgrep/semgrep:1.183.0
-  steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-    - name: Choisir le commit de reference
-      id: base
-      run: |
-        # push : commit d'avant le push ; pull request : branche de base
-        # sinon (1er push, force-push, lancement manuel) : tag de depart
-        ...
-    - name: Semgrep - nouvelles vulnerabilites seulement
-      run: >
-        semgrep scan --config p/java --config p/secrets
-        --baseline-commit "${{ steps.base.outputs.sha }}"
-        --error tika-core/src/main/java
-```
-
-| Choix | Pourquoi |
-|---|---|
-| `--baseline-commit` | Semgrep ne signale que les alertes absentes du commit de référence. Les 3 alertes de départ ne bloquent donc jamais. |
-| Référence = commit précédent | L'énoncé demande d'échouer quand un commit introduit une vulnérabilité. Seul ce commit est rouge, les suivants redeviennent verts. |
-| `--error` | Sans cette option, Semgrep termine avec le code 0 même s'il trouve des alertes. |
-| Job séparé des tests | On voit tout de suite si l'échec vient des tests ou de la sécurité. |
-| Version de Semgrep fixée | Le résultat ne change pas d'un run à l'autre. |
-| `fetch-depth: 0` et `safe.directory` | Sans eux, Git ne trouve pas le commit de référence ou refuse de travailler dans le conteneur. |
-
-Un 2ᵉ scan complet, qui ne bloque rien, produit le rapport utilisé pour la comparaison avant / après.
-
-Limite : si plusieurs commits sont poussés d'un coup, ils sont comparés ensemble. Notre première version
-comparait toujours au tag de départ, mais alors tous les commits suivants restaient rouges, même un simple
-changement du README.
-
-### Validation
-
-Chaque commit a été poussé seul :
-
-| Commit | Contenu | Résultat |
-|---|---|---|
-| [Workflow](https://github.com/farah-romdhane/tika/actions/runs/43128097270) | modification du `.yml` seulement | ✅ vert |
-| [A](RUN_A) | ajoute une classe qui utilise MD5 | ❌ `semgrep` rouge : 1 alerte `use-of-md5`, `exit code 1` (`tests` vert) |
-| [B](https://github.com/farah-romdhane/tika/actions/runs/43131977982) | modifie seulement le README | ✅ vert, même si le MD5 est encore dans le code |
-| [C](https://github.com/farah-romdhane/tika/actions/runs/43132357647) | retire la classe MD5 | ✅ vert |
-
-## 3. Les 7 vulnérabilités
-
-Chaque vulnérabilité est une nouvelle méthode ou constante, ajoutée dans une classe existante de `tika-core` liée
-au sujet. Elles ne sont appelées nulle part : Semgrep analyse le code source, et le comportement de Tika ne
-change pas (les tests de la tâche 2 passent toujours).
-
-| # | Fichier | Code ajouté | Pourquoi c'est vulnérable | Règle Semgrep |
-|---|---|---|---|---|
-| 1 | `metadata/Database.java` | `"jdbc:postgresql://tikaadmin:Tika2026!@localhost:5432/tika"` | **CWE-798** : identifiants dans le code source, visibles par quiconque lit le dépôt. | `detected-username-and-password-in-uri` |
-| 2 | `metadata/Database.java` | `executeQuery("SELECT COUNT(*) FROM " + tableName)` | **CWE-89** : `tableName` est collé dans la requête, l'appelant peut en changer le sens (ex. `UNION SELECT …`). | `formatted-sql-string` |
-| 3 | `digest/DigestHelper.java` | `MessageDigest.getInstance("MD5")` | **CWE-328** : MD5 a des collisions connues, deux documents différents peuvent avoir la même empreinte. | `use-of-md5` |
-| 4 | `detect/XmlRootExtractor.java` | `DocumentBuilderFactory.newInstance()` sans désactiver les `DOCTYPE` | **CWE-611** : une entité externe (`file:///etc/passwd`) peut faire lire un fichier du serveur. | `documentbuilderfactory-disallow-doctype-decl-missing` |
-| 5 | `parser/CryptoParser.java` | `Cipher.getInstance("DES/ECB/PKCS5Padding")` | **CWE-327** : clé DES de 56 bits cassable par force brute ; ECB chiffre deux blocs identiques de la même façon. | `des-is-deprecated`, `ecb-cipher` |
-| 6 | `parser/CryptoParser.java` | `KeyPairGenerator` RSA avec `initialize(512)` | **CWE-326** : une clé RSA de 512 bits est factorisable ; le NIST demande au moins 2048 bits. | `use-of-weak-rsa-key` |
-| 7 | `io/TikaInputStream.java` | `new Socket(host, port)` pour lire un document | **CWE-319** : le document passe en clair et peut être lu ou modifié sur le réseau. | `unencrypted-socket` |
-
-**Pourquoi 4 vulnérabilités cryptographiques ?** On a d'abord essayé une injection de commande
-(`ProcessBuilder`), une désérialisation (`ObjectInputStream`), un aléatoire prévisible (`new Random()`) et un mot
-de passe dans une constante : Semgrep ne les a pas détectés. Dans le
-[dépôt des règles Semgrep](https://github.com/semgrep/semgrep-rules), les règles correspondantes ont
-`confidence: LOW` et ne font pas partie de `p/java`. Le reste des règles de `p/java` vise surtout des applications
-web (servlets), que `tika-core` n'a pas. Nos 4 cas de crypto restent des erreurs différentes, avec des CWE
-différents : algorithme de hachage, algorithme et mode de chiffrement, taille de clé, transport.
-
-Conclusion : un build vert ne veut pas dire que le code est sûr, le résultat dépend des règles choisies.
-
-## 4. Comparaison avant / après
-
-Rapports : [`semgrep-avant.txt`](docs/semgrep/semgrep-avant.txt) et [`semgrep-apres.txt`](docs/semgrep/semgrep-apres.txt).
-
-| Fichier | Ligne | Règle | Avant | Après |
-|---|---|---|---|---|
-| `mime/MimeTypesReader.java` | 223 | `saxparserfactory-disallow-doctype-decl-missing` | ✔ | ✔ |
-| `parser/NetworkParser.java` | 68 | `unencrypted-socket` | ✔ | ✔ |
-| `utils/XMLReaderUtils.java` | 307 | `xmlinputfactory-possible-xxe` | ✔ | ✔ |
-| `metadata/Database.java` | 36 | `detected-username-and-password-in-uri` | | nouvelle |
-| `metadata/Database.java` | 44 | `formatted-sql-string` | | nouvelle |
-| `digest/DigestHelper.java` | 112 | `use-of-md5` | | nouvelle |
-| `detect/XmlRootExtractor.java` | 99 | `documentbuilderfactory-disallow-doctype-decl-missing` | | nouvelle |
-| `parser/CryptoParser.java` | 115 | `des-is-deprecated` | | nouvelle |
-| `parser/CryptoParser.java` | 115 | `ecb-cipher` | | nouvelle |
-| `parser/CryptoParser.java` | 124 | `use-of-weak-rsa-key` | | nouvelle |
-| `io/TikaInputStream.java` | 211 | `unencrypted-socket` | | nouvelle |
-| **Total** | | | **3** | **11** |
-
-Les 8 nouvelles alertes correspondent exactement à nos 7 vulnérabilités (DES/ECB en donne 2). Dans le run où
-elles ont été ajoutées (#44), `tests` est vert et `semgrep` rouge avec ces 8 alertes :
-
-![Run #44 : tests verts, Semgrep rouge](docs/semgrep/captures/ci-rouge-semgrep.png)
-
-## 5. Rickroll quand un test échoue
-
-L'énoncé parle de graphhopper ; notre cas d'étude étant Tika, on l'a fait sur les tests de Tika.
-
-Notre action [`rickroll`](.github/actions/rickroll/action.yml) est une action *composite* en `bash`, sans
-dépendance externe. Elle écrit une erreur dans le log et ajoute au résumé du run une image présentée comme
-« le détail de l'erreur », dont le lien ouvre *Never Gonna Give You Up*.
-
-```yaml
-- name: Executer les tests (originaux + generes + manuels)
-  id: tests
-  ...
 - name: Rickroll si les tests echouent
   if: failure() && steps.tests.outcome == 'failure'
   uses: ./.github/actions/rickroll
 ```
-
-La condition `steps.tests.outcome` limite le rickroll à un échec des tests (pas de la compilation).
-
-| Run | Situation | Résultat |
-|---|---|---|
-| #39 | tous les tests passent | Rickroll sauté, run vert |
-| #40 | un test qui échoue exprès (`expected: <1> but was: <2>`) | Rickroll exécuté |
-| #41 | test retiré | Rickroll sauté, run vert |
-
-![Résumé du run #40 avec le rickroll](docs/semgrep/captures/rickroll-summary.png)
-
-## 6. Utilisation de l'IA
-
-On a utilisé Claude (Anthropic) pour comprendre Semgrep, écrire le workflow et l'action, choisir et écrire le code
-vulnérable et rédiger ce README. On a fait nous-mêmes les commits, lancé le CI et vérifié les résultats : les
-chiffres, les logs et les captures viennent de nos propres runs.
+ 
+Avec un simple `if: failure()`, elle se déclencherait aussi pour une erreur de compilation ; la condition sur
+`steps.tests` la limite à l'échec des tests.
+ 
+Validation : un test qui échoue exprès ([R1](https://github.com/farah-romdhane/tika/actions/runs/44024702673) : `tests` rouge, rickroll exécuté), puis son retrait
+([R2](https://github.com/farah-romdhane/tika/actions/runs/44024726404) : vert, rickroll sauté).
+ 
+ 
+## 5. Utilisation de l'IA
+ 
+On a utilisé Claude (Anthropic) pour comprendre Semgrep, écrire le workflow et l'action, préparer le code
+vulnérable et rédiger ce README. Les commits, les runs et les vérifications sont les nôtres : chaque chiffre de ce
+document vient d'un run ou d'un rapport lié ici.
+ 
